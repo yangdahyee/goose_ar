@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { estimateFloorPoint, facesUp } from './placement';
 
 export async function isArSupported(): Promise<boolean> {
   if (!navigator.xr) return false;
@@ -13,7 +14,7 @@ export interface ArHandlers {
   onStart(): void;
   onEnd(): void;
   /** The user tapped while the reticle was on a surface. */
-  onPlace(position: THREE.Vector3, camera: THREE.Vector3): void;
+  onPlace(position: THREE.Vector3, camera: THREE.Vector3, estimated?: boolean): void;
   /** The duck is already placed and the user tapped the screen: a ray from the camera through the touch point. */
   onMove(origin: THREE.Vector3, direction: THREE.Vector3): void;
   /** The reticle found (or lost) a surface. */
@@ -66,7 +67,7 @@ export class ArController {
       this.hasSurface = false;
 
       const viewer = await session.requestReferenceSpace('viewer');
-      this.hitSource = await session.requestHitTestSource!({ space: viewer });
+      this.hitSource = await this.startHitTest(session, viewer);
 
       session.addEventListener('select', this.onSelect);
       session.addEventListener('end', this.onSessionEnd);
@@ -75,6 +76,33 @@ export class ArController {
       this.overlay.hidden = true;
       throw err;
     }
+  }
+
+  /**
+   * Ask for plane AND point hits. Planes are only reported once ARCore is sure of them, which takes the longest;
+   * point hits (feature points) come much earlier and also work on plain floors. Older browsers that do not know
+   * entityTypes get the default (planes only).
+   */
+  private async startHitTest(session: XRSession, viewer: XRReferenceSpace): Promise<XRHitTestSource | undefined> {
+    try {
+      return await session.requestHitTestSource!({ space: viewer, entityTypes: ['plane', 'point'] });
+    } catch {
+      return await session.requestHitTestSource!({ space: viewer });
+    }
+  }
+
+  /** No floor was found: put the duck on an estimated one (see estimateFloorPoint). */
+  placeEstimated() {
+    if (!this.session || !this.placing) return;
+    const camera = this.cameraPosition();
+    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(
+      this.renderer.xr.getCamera().getWorldQuaternion(new THREE.Quaternion()),
+    );
+    const position = estimateFloorPoint(camera, forward);
+    this.placing = false;
+    this.hasSurface = false;
+    this.reticle.visible = false;
+    this.handlers.onPlace(position, camera, true);
   }
 
   end() { void this.session?.end(); }
@@ -91,8 +119,14 @@ export class ArController {
       return;
     }
     const space = this.renderer.xr.getReferenceSpace();
-    const hit = frame.getHitTestResults(this.hitSource)[0];
-    const pose = hit && space ? hit.getPose(space) : undefined;
+    // The nearest hit that faces up. Walls and ceilings are skipped, so they never look like "found the floor".
+    let pose: XRPose | undefined;
+    if (space) {
+      for (const hit of frame.getHitTestResults(this.hitSource)) {
+        const p = hit.getPose(space);
+        if (p && facesUp(p.transform.matrix)) { pose = p; break; }
+      }
+    }
     if (pose) {
       this.reticle.matrix.fromArray(pose.transform.matrix);
       this.reticle.visible = true;

@@ -83,9 +83,10 @@
         background: var(--dot, #fff); box-shadow: 0 0 8px var(--dot, #fff); }
       #hint[data-tone="walk"] { --dot: #8fc6f0; } #hint[data-tone="done"] { --dot: #9fe0b4; } #hint[data-tone="dance"] { --dot: #ffb668; }
       /* floor coach, shown only while no surface is found yet */
-      #coach { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%); width: min(260px, 70%); box-sizing: border-box;
+      #coach { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%); width: min(310px, 84%); box-sizing: border-box;
         padding: 22px 18px; border-radius: 26px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px;
-        font: 800 15px/1.45 var(--font-ui); text-shadow: 0 1px 3px rgba(0, 0, 0, .3); pointer-events: none; }
+        font: 800 15px/1.45 var(--font-ui); text-shadow: 0 1px 3px rgba(0, 0, 0, .3); pointer-events: none; text-wrap: balance; }
+      #coach button { pointer-events: auto; padding: 10px 18px; border-radius: 99px; font: 800 14px var(--font-ui); }
       #coach small { font: 700 12px var(--font-ui); opacity: .72; }
       #coach svg { width: 44px; height: 44px; color: var(--glass-ink); animation: sweep 1.8s ease-in-out infinite; }
       @keyframes sweep { 0%, 100% { transform: rotate(-14deg) translateX(-8px); } 50% { transform: rotate(14deg) translateX(8px); } }
@@ -149,7 +150,8 @@
     <div id="overlay" hidden>
       <div id="scrim"></div>
       <div id="hint" data-tone="info" role="status" aria-live="polite"></div>
-      <div id="coach" class="glass" hidden><svg class="ic"><use href="#i-phone" /></svg><span>폰을 천천히 움직여서<br />바닥을 찾아 보세요</span><small>나가려면 뒤로 가기</small></div>
+      <div id="coach" class="glass" hidden><svg class="ic"><use href="#i-phone" /></svg><span id="coach-text">폰을 천천히 움직여서<br />바닥을 찾아 보세요</span>
+        <button id="place-anyway" class="glass" hidden>그냥 놓기</button><small>나가려면 뒤로 가기</small></div>
       <div class="rail">
         <button id="dance" class="sm glass" aria-label="춤 춰" hidden><svg class="ic"><use href="#i-note" /></svg></button>
         <button id="photo" class="sm glass" aria-label="촬영 모드" hidden><svg class="ic"><use href="#i-cam" /></svg></button>

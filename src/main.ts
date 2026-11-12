@@ -106,6 +106,30 @@ function hideCaption() {
   scrim.classList.remove('show');
 }
 const CAPTION_MS = 2200;
+
+// While no floor is found, the card's tip changes the longer it takes, and after a while a last-resort button appears.
+const coachText = $('coach-text'), placeAnywayBtn = $<HTMLButtonElement>('place-anyway');
+const SCAN_STAGES: { after: number; text: string; fallback: boolean }[] = [
+  { after: 0, text: '폰을 천천히 움직여서<br />바닥을 찾아 보세요', fallback: false },
+  { after: 7, text: '바닥을 1~2m 앞에서 비춰 보세요<br />무늬나 물건이 있는 곳이 좋아요', fallback: false },
+  { after: 16, text: '어둡거나 반짝이는 바닥은 어려워요<br />불을 켜거나 러그, 신발 쪽을 비춰 보세요', fallback: true },
+];
+let scanSince = 0;
+let scanStage = -1;
+function showCoach(on: boolean) {
+  if (on && coach.hidden) { scanSince = performance.now(); scanStage = -1; }   // count from when the search (re)started
+  coach.hidden = !on;
+}
+function updateScanGuide(now: number) {
+  if (coach.hidden) return;
+  const secs = (now - scanSince) / 1000;
+  let s = 0;
+  SCAN_STAGES.forEach((st, i) => { if (secs >= st.after) s = i; });
+  if (s === scanStage) return;
+  scanStage = s;
+  coachText.innerHTML = SCAN_STAGES[s].text;
+  placeAnywayBtn.hidden = !SCAN_STAGES[s].fallback;
+}
 const captionFor = (s: DuckState, prev: DuckState): [string, Tone] =>
   s === 'walk' ? ['오리가 걸어와요…', 'walk']
   : s === 'go' ? ['오리가 걸어가요…', 'walk']
@@ -212,11 +236,11 @@ const ar = new ArController(renderer, overlay, {
     setPhotoMode(false);
     marker.hide();
     hideCaption();
-    coach.hidden = false;         // until the first surface is found
+    showCoach(true);              // until the first surface is found
   },
   onEnd() {
     hideCaption();
-    coach.hidden = true;
+    showCoach(false);
     marker.hide();                // the destination ring belongs to the AR session's coordinates
     behavior.setState('idle');    // do not leave the duck "walking" in the plain viewer
     restoreViewerCamera();
@@ -237,26 +261,28 @@ const ar = new ArController(renderer, overlay, {
   },
   onSurface(found) {
     if (!ar.isPlacing) return;
-    coach.hidden = found;
+    showCoach(!found);
     if (found) showCaption('탭해서 오리를 놓으세요');   // stays until the duck is placed
     else hideCaption();
   },
-  onPlace(position, cam) {
+  onPlace(position, cam, estimated) {
     duck.root.position.copy(position);
     duck.root.rotation.y = yawToward(position, cam); // face the player
     duck.root.visible = true;
-    coach.hidden = true;
+    showCoach(false);
     behavior.setState('idle');      // its caption: "오리를 놓았어요"
     setPlacedUi(true);
+    if (estimated) showCaption('바닥 높이를 추정해서 놓았어요. 어긋나면 "다시 놓기"를 눌러 주세요', 'info', 4500);
   },
 });
 scene.add(ar.reticle);
 
+placeAnywayBtn.onclick = () => ar.placeEstimated();
 replaceBtn.onclick = () => {
   duck.root.visible = false;
   setPlacedUi(false);
   hideCaption();
-  coach.hidden = false;
+  showCoach(true);
   ar.startPlacing();
 };
 photoBtn.onclick = () => setPhotoMode(true);
@@ -282,7 +308,7 @@ if (params.get('ui') === 'ar') {
   viewerUi.hidden = true;
   overlay.hidden = false;
   if (params.has('scan')) {
-    coach.hidden = false;           // ?ui=ar&scan: the "looking for the floor" state
+    showCoach(true);                // ?ui=ar&scan: the "looking for the floor" state
   } else {
     setPlacedUi(true);
     showCaption(params.get('msg') ?? '오리를 놓았어요', (params.get('tone') as Tone) ?? 'done'); // stays visible for design review
@@ -324,6 +350,7 @@ renderer.setAnimationLoop((_time, frame) => {
   duck.update(dt);
   shadow.follow(duck.root);
   ar.update(frame);
+  updateScanGuide(performance.now());
   marker.update(clock.elapsedTime);
   if (renderer.xr.isPresenting && duck.root.visible) behavior.update(dt, ar.cameraPosition(player));
   if (!renderer.xr.isPresenting) controls.update();
