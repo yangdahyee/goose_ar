@@ -5,6 +5,7 @@ import { DuckBehavior, type DuckState } from './duck/behavior';
 import { loadDuck } from './duck/duck';
 import { LOOKS, type Look } from './duck/looks';
 import { ShadowRig } from './duck/shadow';
+import { LookPicker } from './ui/picker';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { ArController, isArSupported } from './xr/ar';
 import { TargetMarker } from './xr/marker';
@@ -65,9 +66,36 @@ controls.enableDamping = true;
 
 const duck = await loadDuck(`${import.meta.env.BASE_URL}models/duck.glb`);
 duck.root.position.set(0, 0, 0);
-const requestedLook = params.get('look') as Look | null;
-duck.setLook(requestedLook && LOOKS.includes(requestedLook) ? requestedLook : DEFAULT_LOOK);
+// ---- surface look: chosen on the first visit, remembered, changeable from the viewer
+const LOOK_KEY = 'goose-ar-look';
+const isLook = (v: string | null): v is Look => v !== null && (LOOKS as string[]).includes(v);
+function readStoredLook(): Look | null {
+  try { const v = localStorage.getItem(LOOK_KEY); return isLook(v) ? v : null; } catch { return null; }
+}
+function storeLook(look: Look) {
+  try { localStorage.setItem(LOOK_KEY, look); } catch { /* private mode: it just asks again next time */ }
+}
+const forcedLook = isLook(params.get('look')) ? (params.get('look') as Look) : null; // ?look=plain skips the picker
+let currentLook: Look = forcedLook ?? readStoredLook() ?? DEFAULT_LOOK;
+const firstVisit = !forcedLook && !readStoredLook();
+duck.setLook(currentLook);
 scene.add(duck.root);
+
+const LOOK_NAME: Record<Look, string> = { glass: '유리', plain: '일반' };
+const changeLookBtn = $<HTMLButtonElement>('change-look');
+const updateLookButton = () => { changeLookBtn.textContent = `질감 바꾸기 · ${LOOK_NAME[currentLook]}`; };
+updateLookButton();
+const picker = new LookPicker(renderer, $('picker'), envMap, VIEWER_BG, () => duck.clone(), (look) => {
+  currentLook = look;
+  storeLook(look);
+  duck.setLook(look);
+  updateLookButton();
+  picker.close();
+  viewerUi.hidden = false;
+});
+const openPicker = () => { viewerUi.hidden = true; picker.open(); };
+changeLookBtn.onclick = openPicker;
+if ((firstVisit && params.get('ui') !== 'ar') || params.has('pick')) openPicker();
 
 // ---- normal viewer: clip buttons
 for (const name of duck.clips) {
@@ -117,7 +145,7 @@ const behavior = new DuckBehavior(duck, (s, prev) => {
   if (duck.root.visible) { const [text, tone] = captionFor(s, prev); showCaption(text, tone, CAPTION_MS); }
 });
 const player = new THREE.Vector3();
-if (params.has('debug')) (window as unknown as Record<string, unknown>).__duck = { duck, behavior, camera, scene, marker, exit: () => ar.end() };
+if (params.has('debug')) (window as unknown as Record<string, unknown>).__duck = { duck, behavior, camera, scene, marker, picker, look: () => currentLook, exit: () => ar.end() };
 const ar = new ArController(renderer, overlay, {
   onStart() {
     viewerUi.hidden = true;
@@ -237,6 +265,7 @@ resize();
 const clock = new THREE.Clock();
 renderer.setAnimationLoop((_time, frame) => {
   const dt = clock.getDelta();
+  if (picker.active) { picker.render(dt, clock.elapsedTime); return; }   // first-visit screen: only the previews
   duck.update(dt);
   shadow.follow(duck.root);
   ar.update(frame);

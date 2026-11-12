@@ -48,7 +48,24 @@
         background: var(--hat-glass); border: 1px solid rgba(255, 255, 255, .5);
         -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); text-shadow: 0 1px 4px rgba(24, 60, 96, .45);
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, .55), 0 8px 24px rgba(60, 110, 160, .3); }
+      #change-look { padding: 12px 18px; border-radius: 99px; font: 800 14px var(--font-ui); }
       #start-ar:disabled { opacity: .5; box-shadow: none; }
+
+      /* ---- first-visit look picker: the stages are transparent windows onto the 3D canvas behind them ---- */
+      #picker { position: fixed; inset: 0; z-index: 20; box-sizing: border-box; display: flex; flex-direction: column; align-items: center;
+        justify-content: center; gap: 18px; padding: 24px 16px; padding-top: max(24px, env(safe-area-inset-top));
+        padding-bottom: max(24px, env(safe-area-inset-bottom)); overflow-y: auto; }
+      #picker h1 { margin: 0; font: 400 28px var(--font-cute); text-align: center; text-wrap: balance; }
+      #picker .sub { margin: -10px 0 0; color: rgba(43, 33, 24, .6); font-weight: 700; text-align: center; }
+      #picker .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; width: min(100%, 520px); }
+      .pick { display: flex; flex-direction: column; align-items: stretch; gap: 8px; padding: 0; background: none; color: var(--ink); text-align: center; }
+      .pick .stage { display: block; height: clamp(220px, 38vh, 330px); border-radius: 26px; border: 1.5px solid rgba(43, 33, 24, .14);
+        transition: border-color .15s, transform .15s; }
+      .pick strong { font: 400 19px var(--font-cute); }
+      .pick small { color: rgba(43, 33, 24, .6); font-weight: 700; font-size: 13px; }
+      .pick:hover .stage, .pick:focus-visible .stage { border-color: #5a9fd6; }
+      .pick:active .stage { transform: scale(.98); }
+      .pick:focus-visible { outline: none; }
 
       /* ---- AR overlay (WebXR dom-overlay root). Design C: one big call button + thumb rail ---- */
       #overlay { position: fixed; inset: 0; pointer-events: none; font-family: var(--font-ui); }
@@ -110,11 +127,21 @@
 
     <div id="app"></div>
 
+    <div id="picker" hidden>
+      <h1>어떤 오리로 시작할까요?</h1>
+      <p class="sub">나중에 언제든 바꿀 수 있어요</p>
+      <div class="cards">
+        <button class="pick" data-look="glass" aria-label="유리 질감 오리 선택"><span class="stage"></span><strong>유리 질감</strong><small>반질반질 윤이 나요</small></button>
+        <button class="pick" data-look="plain" aria-label="일반 질감 오리 선택"><span class="stage"></span><strong>일반 질감</strong><small>보송하고 부드러워요</small></button>
+      </div>
+    </div>
+
     <div id="viewer">
       <div id="build"></div>
       <div id="clips"></div>
       <div class="bottom">
         <button id="start-ar" disabled>AR 시작</button>
+        <button id="change-look" class="glass" aria-label="질감 바꾸기">질감 바꾸기</button>
         <span id="status" class="chip glass">불러오는 중…</span>
       </div>
     </div>

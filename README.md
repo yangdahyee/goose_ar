@@ -76,8 +76,12 @@ python tools/export_glb.py assets/roomducks_duck_only.blend public/models/duck.g
 | 코팅 | 0.2~0.35 | 0 |
 | 천 광택(sheen) | 0 | 0.35~0.55 |
 
-- 기본값은 `src/config.ts`의 `DEFAULT_LOOK`. 주소에 `?look=plain` / `?look=glass`로 미리 볼 수 있다.
-- 코드에서는 `duck.setLook('glass' | 'plain')`로 바꾼다. 선택 화면은 아직 없다.
+**처음 접속하면 선택 화면**이 뜬다(`src/ui/picker.ts`). 유리 오리와 일반 오리가 각각 3D로 돌아가고, 탭해서 고르면 그 질감으로 시작한다. 선택은 폰에 저장되어(`localStorage`의 `goose-ar-look`) 다음부터는 바로 들어가고, 일반 뷰어의 **질감 바꾸기** 버튼으로 다시 고를 수 있다.
+
+- 주소 `?look=glass` / `?look=plain`: 선택 화면을 건너뛰고 그 질감으로 연다(저장된 값은 바꾸지 않는다).
+- 주소 `?pick`: 선택 화면을 강제로 띄운다.
+- 기본값은 `src/config.ts`의 `DEFAULT_LOOK`(저장소를 쓸 수 없을 때의 값). 코드에서는 `duck.setLook('glass' | 'plain')`.
+- 선택 화면의 두 오리는 `duck.clone()`으로 만든 복사본이고, 앱의 렌더러 하나가 카드 영역마다 나눠서 그린다.
 
 ## 애니메이션 클립
 
