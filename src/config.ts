@@ -12,3 +12,7 @@ export const TURN_RATE = 5;           // rad/s when turning toward the player
 // Tap to move
 export const GO_STOP_DISTANCE_M = 0.03; // how close to the tapped spot the duck stops
 export const MAX_TAP_DISTANCE_M = 6;    // ignore taps whose floor hit is farther than this from the camera
+
+// Looking for the floor: after this many seconds without one, the card shows a second tip, then offers "그냥 놓기".
+export const SCAN_SECOND_TIP_S = 4;
+export const PLACE_ANYWAY_S = 8;

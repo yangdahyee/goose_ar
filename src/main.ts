@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { DEFAULT_LOOK, DUCK_HEIGHT_M, MAX_TAP_DISTANCE_M } from './config';
+import { DEFAULT_LOOK, DUCK_HEIGHT_M, MAX_TAP_DISTANCE_M, PLACE_ANYWAY_S, SCAN_SECOND_TIP_S } from './config';
 import { DuckBehavior, type DuckState } from './duck/behavior';
 import { loadDuck, type Duck } from './duck/duck';
 import { applyGlassLook, downgradeToStandard, LIGHTING, LOOKS, MODEL_FILE, type Look } from './duck/looks';
@@ -125,14 +125,14 @@ const CAPTION_MS = 2200;
 const coachText = $('coach-text'), placeAnywayBtn = $<HTMLButtonElement>('place-anyway');
 const SCAN_STAGES: { after: number; text: string; fallback: boolean }[] = [
   { after: 0, text: '폰을 천천히 움직여서<br />바닥을 찾아 보세요', fallback: false },
-  { after: 7, text: '바닥을 1~2m 앞에서 비춰 보세요<br />무늬나 물건이 있는 곳이 좋아요', fallback: false },
-  { after: 16, text: '어둡거나 반짝이는 바닥은 어려워요<br />불을 켜거나 러그, 신발 쪽을 비춰 보세요', fallback: true },
+  { after: SCAN_SECOND_TIP_S, text: '바닥을 1~2m 앞에서 비춰 보세요<br />무늬나 물건이 있는 곳이 좋아요', fallback: false },
+  { after: PLACE_ANYWAY_S, text: '어둡거나 반짝이는 바닥은 찾기 어려워요<br />아래 버튼으로 먼저 놓아 볼 수도 있어요', fallback: true },
 ];
 let scanSince = 0;
 let scanStage = -1;
 /**
  * `restart` is only for a genuinely new search (AR start, "다시 놓기"). A floor that flickers in and out must not
- * restart the clock, or the 16 s "그냥 놓기" button would never appear.
+ * restart the clock, or the "그냥 놓기" button would never appear.
  */
 function showCoach(on: boolean, restart = false) {
   if (on && restart) { scanSince = performance.now(); scanStage = -1; }
