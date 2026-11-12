@@ -71,6 +71,11 @@ export class ArController {
 
   end() { void this.session?.end(); }
 
+  /** Player (camera) position in world space. Only meaningful while a session is running. */
+  cameraPosition(out = new THREE.Vector3()): THREE.Vector3 {
+    return out.setFromMatrixPosition(this.renderer.xr.getCamera().matrixWorld);
+  }
+
   /** Call once per rendered frame. */
   update(frame?: XRFrame) {
     if (!frame || !this.hitSource || !this.placing) {
@@ -95,7 +100,7 @@ export class ArController {
   private onSelect = () => {
     if (!this.placing || !this.reticle.visible) return;
     const position = new THREE.Vector3().setFromMatrixPosition(this.reticle.matrix);
-    const camera = new THREE.Vector3().setFromMatrixPosition(this.renderer.xr.getCamera().matrixWorld);
+    const camera = this.cameraPosition();
     this.placing = false;
     this.reticle.visible = false;
     this.handlers.onPlace(position, camera);

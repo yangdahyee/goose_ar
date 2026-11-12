@@ -7,6 +7,7 @@
     <style>
       html, body { margin: 0; height: 100%; background: #eef3f6; overflow: hidden; }
       body { font: 14px/1.4 system-ui, sans-serif; color: #16242d; }
+      [hidden] { display: none !important; } /* id rules below set display:flex and would override it */
       #app { position: fixed; inset: 0; }
       button { font: 700 15px system-ui, sans-serif; padding: 12px 18px; border: 0; border-radius: 12px;
         background: #e8731a; color: #fff; }
@@ -29,7 +30,7 @@
       #overlay[hidden] { display: none; }
       #overlay > * { pointer-events: auto; }
       #hint { align-self: center; text-align: center; }
-      #overlay .bar { display: flex; gap: 10px; justify-content: center; }
+      #overlay .bar { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
     </style>
   </head>
   <body>
@@ -46,6 +47,8 @@
     <div id="overlay" hidden>
       <div id="hint" class="chip">바닥을 천천히 비춰 보세요</div>
       <div class="bar">
+        <button id="come" hidden>이리 와</button>
+        <button id="dance" hidden>춤 춰</button>
         <button id="replace" class="alt" hidden>다시 놓기</button>
         <button id="exit" class="alt">종료</button>
       </div>

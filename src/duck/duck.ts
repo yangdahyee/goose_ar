@@ -8,6 +8,9 @@ export interface Duck {
   heightUnits: number;
   clips: string[];
   play(name: string, fade?: number): void;
+  setTimeScale(clip: string, scale: number): void;
+  /** Called when a non-looping clip (Dance) reaches its end. */
+  onFinished(cb: (clip: string) => void): void;
   update(dt: number): void;
   /** Debug: show `clip` frozen at `time` seconds. */
   freezeAt(clip: string, time: number): void;
@@ -25,7 +28,14 @@ export async function loadDuck(url: string): Promise<Duck> {
 
   const mixer = new THREE.AnimationMixer(gltf.scene);
   const actions = new Map<string, THREE.AnimationAction>();
-  for (const clip of gltf.animations) actions.set(clip.name, mixer.clipAction(clip));
+  for (const clip of gltf.animations) {
+    const action = mixer.clipAction(clip);
+    if (clip.name === 'Dance') {            // one pass, then the behaviour returns to Idle
+      action.setLoop(THREE.LoopOnce, 1);
+      action.clampWhenFinished = true;
+    }
+    actions.set(clip.name, action);
+  }
   let current: THREE.AnimationAction | undefined;
 
   return {
@@ -34,10 +44,17 @@ export async function loadDuck(url: string): Promise<Duck> {
     clips: [...actions.keys()],
     play(name, fade = 0.25) {
       const next = actions.get(name);
-      if (!next || next === current) return;
+      if (!next || (next === current && next.isRunning())) return;
       next.reset().fadeIn(fade).play();
-      current?.fadeOut(fade);
+      if (current && current !== next) current.fadeOut(fade);
       current = next;
+    },
+    setTimeScale(name, scale) { actions.get(name)?.setEffectiveTimeScale(scale); },
+    onFinished(cb) {
+      mixer.addEventListener('finished', (e) => {
+        const name = [...actions].find(([, a]) => a === (e as unknown as { action: THREE.AnimationAction }).action)?.[0];
+        if (name) cb(name);
+      });
     },
     update: (dt) => mixer.update(dt),
     freezeAt(name, time) {

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { DUCK_HEIGHT_M } from './config';
+import { DuckBehavior, type DuckState } from './duck/behavior';
 import { loadDuck } from './duck/duck';
 import { ArController, isArSupported } from './xr/ar';
 import { yawToward } from './xr/placement';
@@ -10,6 +11,8 @@ const params = new URLSearchParams(location.search);
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const statusEl = $('status'), viewerUi = $('viewer'), overlay = $('overlay');
 const hint = $('hint'), replaceBtn = $<HTMLButtonElement>('replace'), startBtn = $<HTMLButtonElement>('start-ar');
+const comeBtn = $<HTMLButtonElement>('come'), danceBtn = $<HTMLButtonElement>('dance');
+const setPlacedUi = (placed: boolean) => { comeBtn.hidden = danceBtn.hidden = replaceBtn.hidden = !placed; };
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -51,6 +54,15 @@ const t = params.get('t');
 if (t) duck.freezeAt(firstClip, Number(t));
 
 // ---- AR
+const hintFor = (s: DuckState, prev: DuckState) =>
+  s === 'walk' ? '오리가 걸어와요…'
+  : s === 'dance' ? '신나게 춤추는 중!'
+  : prev === 'walk' ? '도착했어요'
+  : prev === 'dance' ? '춤 끝!'
+  : '오리를 놓았어요';
+const behavior = new DuckBehavior(duck, (s, prev) => { if (duck.root.visible) hint.textContent = hintFor(s, prev); });
+const player = new THREE.Vector3();
+if (params.has('debug')) (window as unknown as Record<string, unknown>).__duck = { duck, behavior };
 const ar = new ArController(renderer, overlay, {
   onStart() {
     viewerUi.hidden = true;
@@ -58,7 +70,7 @@ const ar = new ArController(renderer, overlay, {
     controls.enabled = false;
     duck.root.visible = false;            // appears when the user taps a spot
     duck.setHeight(DUCK_HEIGHT_M);
-    replaceBtn.hidden = true;
+    setPlacedUi(false);
     hint.textContent = '바닥을 천천히 비춰 보세요';
   },
   onEnd() {
@@ -77,19 +89,20 @@ const ar = new ArController(renderer, overlay, {
     duck.root.position.copy(position);
     duck.root.rotation.y = yawToward(position, cam); // face the player
     duck.root.visible = true;
-    duck.play('Idle');
-    hint.textContent = '오리를 놓았어요';
-    replaceBtn.hidden = false;
+    behavior.setState('idle');
+    setPlacedUi(true);
   },
 });
 scene.add(ar.reticle);
 
 replaceBtn.onclick = () => {
   duck.root.visible = false;
-  replaceBtn.hidden = true;
+  setPlacedUi(false);
   hint.textContent = '바닥을 천천히 비춰 보세요';
   ar.startPlacing();
 };
+comeBtn.onclick = () => behavior.callToMe();
+danceBtn.onclick = () => behavior.dance();
 $('exit').onclick = () => ar.end();
 startBtn.onclick = async () => {
   startBtn.disabled = true;
@@ -115,8 +128,10 @@ resize();
 
 const clock = new THREE.Clock();
 renderer.setAnimationLoop((_time, frame) => {
-  duck.update(clock.getDelta());
+  const dt = clock.getDelta();
+  duck.update(dt);
   ar.update(frame);
+  if (renderer.xr.isPresenting && duck.root.visible) behavior.update(dt, ar.cameraPosition(player));
   if (!renderer.xr.isPresenting) controls.update();
   renderer.render(scene, camera);
 });

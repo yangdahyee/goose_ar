@@ -18,6 +18,13 @@ npm run dev        # http://localhost:5173
 안드로이드 Chrome에서 페이지를 열고 **AR 시작**을 누르면 카메라가 켜진다.
 바닥을 천천히 비추면 흰 링이 뜨고, 탭하면 그 자리에 오리가 서서 나를 바라본다. **다시 놓기**로 위치를 바꾸고, **종료**로 일반 뷰어로 돌아간다.
 
+오리를 놓으면 버튼이 더 나온다.
+- **이리 와**: 오리가 내 쪽으로 몸을 돌리고 걸어와서 `STOP_DISTANCE_M`(0.5m) 앞에서 멈춘다. 오는 중에도 내가 움직이면 계속 따라온다.
+- **춤 춰**: 춤을 한 번 추고 Idle로 돌아간다.
+- 멈춰 있을 때와 춤출 때는 천천히 나를 바라본다.
+
+걷기 튜닝은 `src/config.ts`: `WALK_SPEED_MULT`(걸음 빠르기, 속도도 같이 올라가서 발은 미끄러지지 않음), `STOP_DISTANCE_M`, `TURN_RATE`.
+
 - 필요 조건: ARCore 지원 폰 + Chrome (Google Play Services for AR 설치)
 - 오리 크기는 `src/config.ts`의 `DUCK_HEIGHT_M`(기본 0.3m)
 - AR 미지원 기기에서는 버튼이 비활성화되고 일반 3D 뷰어만 동작
