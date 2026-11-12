@@ -7,7 +7,7 @@ import * as THREE from 'three';
  */
 export class ShadowRig {
   readonly group = new THREE.Group();
-  readonly light = new THREE.DirectionalLight(0xffffff, 2);
+  readonly light = new THREE.DirectionalLight(0xffffff, 1.5);
 
   constructor() {
     const { light } = this;

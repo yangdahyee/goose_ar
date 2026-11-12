@@ -57,13 +57,27 @@ GitHub Pages는 브라우저가 `index.html`을 약 10분간 캐시하게 해서
 
 ## 에셋
 
-- `assets/duck.blend`: 원본
-- `public/models/duck.glb`: 앱이 쓰는 모델
-- `tools/export_glb.py`: blend → glb 변환 (`pip install bpy` 필요)
+- `assets/roomducks_duck_only.blend`: 현재 오리의 원본(방에서 오리와 돈다발만 추출). 유리 질감과 일반(Plush) 질감 재질이 둘 다 들어 있다.
+- `assets/duck.blend`: 이전 오리(현재는 쓰지 않음)
+- `public/models/duck.glb`: 앱이 쓰는 모델 (약 1.1MB, 폴리곤 약 3.9만)
+- `tools/export_glb.py`: blend → glb 변환 (`pip install bpy` 필요). 눈·볼터치 텍스처 굽기, 폴리곤 줄이기, 모자·돈다발 고정, 제자리 Idle/Walk/Dance 제작까지 한다.
 
 ```bash
-python tools/export_glb.py assets/duck.blend public/models/duck.glb
+python tools/export_glb.py assets/roomducks_duck_only.blend public/models/duck.glb
 ```
+
+### 질감 (유리 / 일반)
+
+같은 GLB에 질감 설정만 바꿔 끼운다(`src/duck/looks.ts`). 두 질감은 Blender 파일의 `Duck_White`와 `Duck_White_Plush` 같은 재질 쌍의 값이다.
+
+| | 유리 | 일반 |
+|---|---|---|
+| 거칠기 | 0.28~0.38 | 0.95 |
+| 코팅 | 0.2~0.35 | 0 |
+| 천 광택(sheen) | 0 | 0.35~0.55 |
+
+- 기본값은 `src/config.ts`의 `DEFAULT_LOOK`. 주소에 `?look=plain` / `?look=glass`로 미리 볼 수 있다.
+- 코드에서는 `duck.setLook('glass' | 'plain')`로 바꾼다. 선택 화면은 아직 없다.
 
 ## 애니메이션 클립
 
@@ -71,7 +85,7 @@ python tools/export_glb.py assets/duck.blend public/models/duck.glb
 |---|---|---|
 | `Idle` | 2.0초 (루프) | 숨쉬기 |
 | `Walk` | 0.667초 (루프) | 뒤뚱뒤뚱 걷기. 발이 미끄러지지 않는 이동 속도는 모델 단위로 **2.1 units/초** (`2 × STRIDE ÷ (16프레임 ÷ 24fps)`). 앱에서 오리 크기를 곱해서 쓴다. |
-| `Dance` | 10초 | 기존 춤 |
+| `Dance` | 8초 (한 번) | 뛰고 몸을 흔드는 춤. 시작과 끝은 대기 자세로 이어진다 |
 
 세 클립은 모두 같은 노드(`Dance_Hips`, `Dance_Neck`, `Dance_Arms`, `Foot_L`, `Foot_R`)를 제어한다. 클립을 바꿀 때 값이 남지 않도록 의도적으로 맞춰 둔 것이다.
 뷰어에서 `?clip=Walk&t=0.2&cam=side`로 특정 포즈를 고정해서 볼 수 있다.

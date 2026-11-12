@@ -1,9 +1,11 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { DUCK_HEIGHT_M, MAX_TAP_DISTANCE_M } from './config';
+import { DEFAULT_LOOK, DUCK_HEIGHT_M, MAX_TAP_DISTANCE_M } from './config';
 import { DuckBehavior, type DuckState } from './duck/behavior';
 import { loadDuck } from './duck/duck';
+import { LOOKS, type Look } from './duck/looks';
 import { ShadowRig } from './duck/shadow';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { ArController, isArSupported } from './xr/ar';
 import { TargetMarker } from './xr/marker';
 import { rayPlaneHit, yawToward } from './xr/placement';
@@ -28,9 +30,14 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 $('app').appendChild(renderer.domElement);
 
+// A neutral studio environment: the glass look's clearcoat needs something to reflect.
+const pmrem = new THREE.PMREMGenerator(renderer);
+const envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 const VIEWER_BG = new THREE.Color(0xeef3f6);
 const scene = new THREE.Scene();
 scene.background = VIEWER_BG;
+scene.environment = envMap;
+scene.environmentIntensity = 0.55;
 const VIEWER_FOV = 40;
 const camera = new THREE.PerspectiveCamera(VIEWER_FOV, 1, 0.01, 100);
 camera.position.set(0, 2.2, 7);
@@ -48,7 +55,7 @@ function restoreViewerCamera() {
   controls.update();
 }
 
-scene.add(new THREE.HemisphereLight(0xffffff, 0x9fb0bb, 1.6));
+scene.add(new THREE.HemisphereLight(0xffffff, 0x9fb0bb, 0.5));
 const shadow = new ShadowRig(); // sun + floor that only shows the duck's shadow
 scene.add(shadow.group);
 
@@ -58,6 +65,8 @@ controls.enableDamping = true;
 
 const duck = await loadDuck(`${import.meta.env.BASE_URL}models/duck.glb`);
 duck.root.position.set(0, 0, 0);
+const requestedLook = params.get('look') as Look | null;
+duck.setLook(requestedLook && LOOKS.includes(requestedLook) ? requestedLook : DEFAULT_LOOK);
 scene.add(duck.root);
 
 // ---- normal viewer: clip buttons
