@@ -32,6 +32,14 @@ npm run dev        # http://localhost:5173
 - 오리 크기는 `src/config.ts`의 `DUCK_HEIGHT_M`(기본 0.3m)
 - AR 미지원 기기에서는 버튼이 비활성화되고 일반 3D 뷰어만 동작
 
+## PC에서 UI 미리보기
+
+AR은 폰에서만 되지만, 조작부 디자인은 PC에서 볼 수 있다.
+
+- `http://localhost:5173/?ui=ar` : AR 화면의 조작부를 일반 뷰어 위에 띄워서 보여 준다.
+- `?ui=ar&photo` : 촬영 모드 상태.
+- 크롬 개발자 도구에서 폰 크기(예: 390×780)로 보면 실제와 비슷하다.
+
 ## 배포
 
 `main`에 푸시하면 GitHub Pages로 배포됩니다. 처음 한 번 저장소 Settings → Pages → Source를 **GitHub Actions**로 바꿔야 합니다.

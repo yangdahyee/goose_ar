@@ -12,6 +12,7 @@ const params = new URLSearchParams(location.search);
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const statusEl = $('status'), viewerUi = $('viewer'), overlay = $('overlay');
 const hint = $('hint'), replaceBtn = $<HTMLButtonElement>('replace'), startBtn = $<HTMLButtonElement>('start-ar');
+const comeLabel = $('come-label');
 const comeBtn = $<HTMLButtonElement>('come'), danceBtn = $<HTMLButtonElement>('dance');
 const photoBtn = $<HTMLButtonElement>('photo'), showUiBtn = $<HTMLButtonElement>('show-ui');
 const setPlacedUi = (placed: boolean) => { comeBtn.hidden = danceBtn.hidden = replaceBtn.hidden = photoBtn.hidden = !placed; };
@@ -65,7 +66,11 @@ const hintFor = (s: DuckState, prev: DuckState) =>
   : prev === 'walk' ? '도착했어요'
   : prev === 'dance' ? '춤 끝!'
   : '오리를 놓았어요';
-const behavior = new DuckBehavior(duck, (s, prev) => { if (duck.root.visible) hint.textContent = hintFor(s, prev); });
+const behavior = new DuckBehavior(duck, (s, prev) => {
+  comeBtn.classList.toggle('busy', s === 'walk');
+  comeLabel.textContent = s === 'walk' ? '오는 중…' : '이리 와';
+  if (duck.root.visible) hint.textContent = hintFor(s, prev);
+});
 const player = new THREE.Vector3();
 if (params.has('debug')) (window as unknown as Record<string, unknown>).__duck = { duck, behavior };
 const ar = new ArController(renderer, overlay, {
@@ -123,6 +128,15 @@ if (await isArSupported()) {
 } else {
   startBtn.title = 'WebXR AR 미지원';
   statusEl.textContent += ' · 이 기기는 AR 미지원 (안드로이드 Chrome + ARCore 필요)';
+}
+
+// ---- desktop preview of the AR overlay: ?ui=ar shows the placed-state controls over the plain viewer
+if (params.get('ui') === 'ar') {
+  viewerUi.hidden = true;
+  overlay.hidden = false;
+  setPlacedUi(true);
+  hint.textContent = '오리를 놓았어요';
+  if (params.has('photo')) setPhotoMode(true);
 }
 
 // ---- loop
