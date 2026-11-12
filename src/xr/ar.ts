@@ -46,7 +46,10 @@ export class ArController {
   get isPlacing() { return this.placing; }
 
   /** Show the reticle again and let the next tap place the duck. */
-  startPlacing() { this.placing = true; }
+  startPlacing() {
+    this.placing = true;
+    this.hasSurface = false; // so onSurface fires again when the reticle reappears
+  }
 
   async start(): Promise<void> {
     this.overlay.hidden = false;
@@ -60,6 +63,7 @@ export class ArController {
       await this.renderer.xr.setSession(session);
       this.session = session;
       this.placing = true;
+      this.hasSurface = false;
 
       const viewer = await session.requestReferenceSpace('viewer');
       this.hitSource = await session.requestHitTestSource!({ space: viewer });
@@ -107,6 +111,7 @@ export class ArController {
     const position = new THREE.Vector3().setFromMatrixPosition(this.reticle.matrix);
     const camera = this.cameraPosition();
     this.placing = false;
+    this.hasSurface = false;
     this.reticle.visible = false;
     this.handlers.onPlace(position, camera);
   };
@@ -126,6 +131,7 @@ export class ArController {
     this.hitSource?.cancel();
     this.hitSource = undefined;
     this.session = undefined;
+    this.hasSurface = false;
     this.reticle.visible = false;
     this.overlay.hidden = true;
     this.handlers.onEnd();

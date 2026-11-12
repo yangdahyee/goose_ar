@@ -105,6 +105,8 @@ const ar = new ArController(renderer, overlay, {
     hint.textContent = '바닥을 천천히 비춰 보세요';
   },
   onEnd() {
+    marker.hide();                // the destination ring belongs to the AR session's coordinates
+    behavior.setState('idle');    // do not leave the duck "walking" in the plain viewer
     restoreViewerCamera();
     viewerUi.hidden = false;
     scene.background = VIEWER_BG;
