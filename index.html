@@ -30,6 +30,11 @@
       #overlay[hidden] { display: none; }
       #overlay > * { pointer-events: auto; }
       #hint { align-self: center; text-align: center; }
+      /* photo mode: nothing visible except a faint corner button that brings the UI back */
+      #show-ui { display: none; position: absolute; right: max(16px, env(safe-area-inset-right));
+        bottom: max(16px, env(safe-area-inset-bottom)); padding: 10px 14px; opacity: .25; font-size: 13px; }
+      #overlay.photo > :not(#show-ui) { visibility: hidden; }
+      #overlay.photo #show-ui { display: block; }
       #overlay .bar { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
     </style>
   </head>
@@ -49,9 +54,11 @@
       <div class="bar">
         <button id="come" hidden>이리 와</button>
         <button id="dance" hidden>춤 춰</button>
+        <button id="photo" class="alt" hidden>촬영 모드</button>
         <button id="replace" class="alt" hidden>다시 놓기</button>
         <button id="exit" class="alt">종료</button>
       </div>
+      <button id="show-ui" class="alt" aria-label="버튼 다시 보이기">UI</button>
     </div>
 
     <script type="module" src="/src/main.ts"></script>

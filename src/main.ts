@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { DUCK_HEIGHT_M } from './config';
 import { DuckBehavior, type DuckState } from './duck/behavior';
 import { loadDuck } from './duck/duck';
+import { ShadowRig } from './duck/shadow';
 import { ArController, isArSupported } from './xr/ar';
 import { yawToward } from './xr/placement';
 
@@ -12,12 +13,17 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 const statusEl = $('status'), viewerUi = $('viewer'), overlay = $('overlay');
 const hint = $('hint'), replaceBtn = $<HTMLButtonElement>('replace'), startBtn = $<HTMLButtonElement>('start-ar');
 const comeBtn = $<HTMLButtonElement>('come'), danceBtn = $<HTMLButtonElement>('dance');
-const setPlacedUi = (placed: boolean) => { comeBtn.hidden = danceBtn.hidden = replaceBtn.hidden = !placed; };
+const photoBtn = $<HTMLButtonElement>('photo'), showUiBtn = $<HTMLButtonElement>('show-ui');
+const setPlacedUi = (placed: boolean) => { comeBtn.hidden = danceBtn.hidden = replaceBtn.hidden = photoBtn.hidden = !placed; };
+// Photo mode hides every overlay element so a phone screenshot or screen recording is clean.
+const setPhotoMode = (on: boolean) => overlay.classList.toggle('photo', on);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.xr.enabled = true;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 $('app').appendChild(renderer.domElement);
 
 const VIEWER_BG = new THREE.Color(0xeef3f6);
@@ -28,9 +34,8 @@ camera.position.set(0, 2.2, 7);
 if (params.get('cam') === 'side') camera.position.set(8, 1.8, 0);
 
 scene.add(new THREE.HemisphereLight(0xffffff, 0x9fb0bb, 1.6));
-const sun = new THREE.DirectionalLight(0xffffff, 2);
-sun.position.set(3, 6, 4);
-scene.add(sun);
+const shadow = new ShadowRig(); // sun + floor that only shows the duck's shadow
+scene.add(shadow.group);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.target.set(0, 1.6, 0);
@@ -71,6 +76,7 @@ const ar = new ArController(renderer, overlay, {
     duck.root.visible = false;            // appears when the user taps a spot
     duck.setHeight(DUCK_HEIGHT_M);
     setPlacedUi(false);
+    setPhotoMode(false);
     hint.textContent = '바닥을 천천히 비춰 보세요';
   },
   onEnd() {
@@ -101,6 +107,8 @@ replaceBtn.onclick = () => {
   hint.textContent = '바닥을 천천히 비춰 보세요';
   ar.startPlacing();
 };
+photoBtn.onclick = () => setPhotoMode(true);
+showUiBtn.onclick = () => setPhotoMode(false);
 comeBtn.onclick = () => behavior.callToMe();
 danceBtn.onclick = () => behavior.dance();
 $('exit').onclick = () => ar.end();
@@ -130,6 +138,7 @@ const clock = new THREE.Clock();
 renderer.setAnimationLoop((_time, frame) => {
   const dt = clock.getDelta();
   duck.update(dt);
+  shadow.follow(duck.root);
   ar.update(frame);
   if (renderer.xr.isPresenting && duck.root.visible) behavior.update(dt, ar.cameraPosition(player));
   if (!renderer.xr.isPresenting) controls.update();

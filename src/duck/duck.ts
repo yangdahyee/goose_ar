@@ -23,6 +23,11 @@ export async function loadDuck(url: string): Promise<Duck> {
   const root = new THREE.Group();
   root.add(gltf.scene);
 
+  gltf.scene.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (mesh.isMesh && !(mesh.material as THREE.Material).transparent) mesh.castShadow = true;
+  });
+
   const box = new THREE.Box3().setFromObject(gltf.scene);
   const heightUnits = box.max.y - box.min.y;
 

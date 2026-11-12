@@ -23,6 +23,9 @@ npm run dev        # http://localhost:5173
 - **춤 춰**: 춤을 한 번 추고 Idle로 돌아간다.
 - 멈춰 있을 때와 춤출 때는 천천히 나를 바라본다.
 
+- **촬영 모드**: 버튼과 안내 문구를 전부 숨긴다. 이 상태에서 폰의 화면 캡처나 화면 녹화로 오리와 함께 찍는다. 오른쪽 아래의 흐린 `UI` 버튼으로 복구한다.
+- 오리 발밑에 부드러운 그림자가 생겨서 바닥에 서 있는 것처럼 보인다 (`src/duck/shadow.ts`).
+
 걷기 튜닝은 `src/config.ts`: `WALK_SPEED_MULT`(걸음 빠르기, 속도도 같이 올라가서 발은 미끄러지지 않음), `STOP_DISTANCE_M`, `TURN_RATE`.
 
 - 필요 조건: ARCore 지원 폰 + Chrome (Google Play Services for AR 설치)
