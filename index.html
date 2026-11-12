@@ -8,9 +8,13 @@
     <style>
       :root {
         --orange: #f08a2e; --orange-d: #c9661a; --cream: #fff6e6; --ink: #2b2118; --bg: #eef3f6;
-        /* glass: dark-tinted frosted panels stay legible over any camera image */
-        --glass: rgba(28, 22, 16, .34); --glass-border: rgba(255, 255, 255, .38); --glass-hi: rgba(255, 255, 255, .28);
-        --glass-blur: blur(16px) saturate(1.5);
+        /* frosted glass: heavy blur, a milky neutral veil, a thin light edge */
+        --glass: linear-gradient(160deg, rgba(255, 255, 255, .20), rgba(255, 255, 255, .06)), rgba(112, 108, 100, .30);
+        --glass-border: rgba(255, 255, 255, .30); --glass-hi: rgba(255, 255, 255, .38);
+        --glass-blur: blur(26px) saturate(1.15);
+        --glass-ink: rgba(255, 255, 255, .74); /* icons: not pure white, so they sit inside the glass */
+        /* hat-blue glass for the main action */
+        --hat-glass: linear-gradient(160deg, rgba(210, 236, 252, .78), rgba(118, 178, 228, .72)), rgba(120, 172, 218, .2);
         --font-ui: 'Nunito', system-ui, sans-serif; --font-cute: 'Jua', 'Nunito', system-ui, sans-serif;
       }
       [hidden] { display: none !important; } /* id rules below set display and would override it */
@@ -22,8 +26,12 @@
       svg.ic { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
       .glass { background: var(--glass); border: 1px solid var(--glass-border); color: #fff;
         -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
-        box-shadow: inset 0 1px 0 var(--glass-hi), 0 6px 20px rgba(0, 0, 0, .22); }
-      @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .glass { background: rgba(28, 22, 16, .62); } }
+        box-shadow: inset 0 1px 0 var(--glass-hi), inset 0 -1px 0 rgba(255, 255, 255, .08), 0 8px 28px rgba(0, 0, 0, .18); }
+      @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+        .glass { background: rgba(84, 80, 74, .66); } #come, #start-ar { background: rgba(86, 140, 190, .82); }
+      }
+      /* the plain 3D viewer sits on a light background, so its glass is a little darker for contrast */
+      #viewer .glass { background: rgba(72, 68, 62, .55); }
       .chip { padding: 8px 14px; border-radius: 99px; font-weight: 800; }
 
       /* ---- normal 3D viewer ---- */
@@ -34,10 +42,10 @@
       #clips { display: flex; gap: 8px; flex-wrap: wrap; }
       #clips button { padding: 10px 16px; border-radius: 99px; font-weight: 800; }
       #viewer .bottom { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-      #start-ar { padding: 14px 22px; border-radius: 99px; color: #fff; font: 400 20px var(--font-cute);
-        background: linear-gradient(180deg, rgba(255, 170, 90, .85), rgba(214, 104, 24, .82)); border: 1px solid rgba(255, 255, 255, .5);
-        -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, .55), 0 6px 18px rgba(201, 102, 26, .45); }
+      #start-ar { padding: 14px 24px; border-radius: 99px; color: #fff; font: 400 20px var(--font-cute);
+        background: var(--hat-glass); border: 1px solid rgba(255, 255, 255, .5);
+        -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); text-shadow: 0 1px 4px rgba(24, 60, 96, .45);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, .55), 0 8px 24px rgba(60, 110, 160, .3); }
       #start-ar:disabled { opacity: .5; box-shadow: none; }
 
       /* ---- AR overlay (WebXR dom-overlay root). Design C: one big call button + thumb rail ---- */
@@ -51,21 +59,20 @@
       #overlay .rail { position: absolute; right: max(14px, env(safe-area-inset-right));
         bottom: calc(env(safe-area-inset-bottom, 0px) + 104px); display: flex; flex-direction: column; gap: 12px; }
       #overlay .rail button { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; transition: transform .12s; }
-      #overlay .rail svg, #overlay .x svg { filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .35)); }
+      #overlay .rail button, #overlay .x { color: var(--glass-ink); }
+      #overlay .rail svg, #overlay .x svg { stroke-width: 1.8; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .16)); }
       #overlay .rail button:active { transform: scale(.9); }
       #overlay .rail svg { width: 26px; height: 26px; }
       #come { position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 24px); transform: translateX(-50%);
-        display: flex; align-items: center; gap: 10px; padding: 12px 30px 12px 14px; border-radius: 99px; white-space: nowrap;
-        background: linear-gradient(180deg, rgba(255, 170, 90, .78), rgba(214, 104, 24, .74)); color: #fff; font: 400 24px var(--font-cute);
-        border: 1px solid rgba(255, 255, 255, .5); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
-        text-shadow: 0 1px 3px rgba(0, 0, 0, .35);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, .55), 0 8px 22px rgba(201, 102, 26, .5); transition: transform .12s; }
-      #come i { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: rgba(255, 255, 255, .22);
-        border: 1px solid rgba(255, 255, 255, .45); }
-      #come svg { width: 28px; height: 28px; }
+        padding: 17px 48px; border-radius: 99px; white-space: nowrap; color: #fff; font: 400 26px var(--font-cute);
+        background: var(--hat-glass); border: 1px solid rgba(255, 255, 255, .5);
+        -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+        text-shadow: 0 1px 4px rgba(24, 70, 120, .5);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, .6), inset 0 -1px 0 rgba(255, 255, 255, .14), 0 10px 28px rgba(60, 120, 180, .38);
+        transition: transform .12s; }
       #come:active { transform: translateX(-50%) scale(.95); }
-      #come.busy i { animation: pulse 1s ease-in-out infinite; }
-      @keyframes pulse { 50% { transform: scale(1.1); } }
+      #come.busy { animation: breath 1.1s ease-in-out infinite; }
+      @keyframes breath { 50% { transform: translateX(-50%) scale(1.045); } }
       /* photo mode: nothing visible except a faint corner button that brings the UI back */
       #show-ui { display: none; position: absolute; right: max(16px, env(safe-area-inset-right));
         bottom: max(16px, env(safe-area-inset-bottom)); padding: 10px 14px; border-radius: 99px; opacity: .35; font-size: 13px; font-weight: 800; }
@@ -77,7 +84,6 @@
   <body>
     <svg width="0" height="0" style="position: absolute" aria-hidden="true">
       <defs>
-        <symbol id="i-foot" viewBox="0 0 24 24"><path d="M12 3.2 4.6 15.4c-.4.7 0 1.4.7 1.7 2 .9 4 .9 6.7-.3 2.7 1.2 4.7 1.2 6.7.3.7-.3 1.1-1 .7-1.7L12 3.2z" fill="currentColor" stroke="none"/><path d="M12 16.6V8M12 16.6 8.4 10.6M12 16.6l3.6-6" stroke="rgba(0,0,0,.28)" stroke-width="1.6" fill="none"/></symbol>
         <symbol id="i-note" viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></symbol>
         <symbol id="i-cam" viewBox="0 0 24 24"><path d="M3 8.5A2.5 2.5 0 0 1 5.5 6H8l1.4-2h5.2L16 6h2.5A2.5 2.5 0 0 1 21 8.5v9a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z"/><circle cx="12" cy="13" r="3.6"/></symbol>
         <symbol id="i-redo" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14-4L4 9"/><path d="M4 4v5h5"/><path d="M4 13a8 8 0 0 0 14 4l2-2"/><path d="M20 20v-5h-5"/></symbol>
@@ -103,7 +109,7 @@
         <button id="photo" class="glass" aria-label="촬영 모드" hidden><svg class="ic"><use href="#i-cam" /></svg></button>
         <button id="replace" class="glass" aria-label="다시 놓기" hidden><svg class="ic"><use href="#i-redo" /></svg></button>
       </div>
-      <button id="come" hidden><i><svg class="ic"><use href="#i-foot" /></svg></i><span id="come-label">이리 와</span></button>
+      <button id="come" hidden><span id="come-label">이리 와</span></button>
       <button id="show-ui" class="glass">UI</button>
     </div>
 
