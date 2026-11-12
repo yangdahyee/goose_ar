@@ -1,14 +1,14 @@
 """Export the roomducks duck (assets/roomducks_duck_only.blend) as the AR app's GLB.
 
-Usage:  python tools/export_glb.py assets/roomducks_duck_only.blend public/models/duck.glb   (needs `pip install bpy`)
+Usage:  python tools/export_glb.py assets/roomducks_duck_only.blend public/models/duck_glass.glb   (needs `pip install bpy`)
 
 What it does
   * bakes the eye gradient and the soft blush to textures (their shaders are procedural),
   * bakes every modifier at frame 1, and decimates the heavy meshes (body, feet, hat) for phones,
   * moves the duck to the origin facing -Y (glTF +Z), and parents the hat to the head and the cash to the body,
   * drops the original room animation and authors three in-place clips: Idle, Walk, Dance,
-  * writes simple PBR materials in the GLASS look (clearcoat). The plain/plush look is a parameter preset
-    applied at runtime (src/duck/looks.ts), so one GLB serves both.
+  * writes simple PBR materials with a clearcoat (the glass look). The original duck is a separate model
+    (public/models/duck_plain.glb); src/duck/looks.ts softens the clearcoat at runtime.
 
 Walk is built so the feet do not slide: ground speed = 2 * STRIDE / (WALK_FRAMES / fps) = 2.1 units/s.
 """

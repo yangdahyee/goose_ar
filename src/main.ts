@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { DEFAULT_LOOK, DUCK_HEIGHT_M, MAX_TAP_DISTANCE_M } from './config';
 import { DuckBehavior, type DuckState } from './duck/behavior';
-import { loadDuck } from './duck/duck';
-import { LOOKS, type Look } from './duck/looks';
+import { loadDuck, type Duck } from './duck/duck';
+import { applyGlassLook, LIGHTING, LOOKS, MODEL_FILE, type Look } from './duck/looks';
 import { ShadowRig } from './duck/shadow';
 import { LookPicker } from './ui/picker';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
@@ -56,7 +56,8 @@ function restoreViewerCamera() {
   controls.update();
 }
 
-scene.add(new THREE.HemisphereLight(0xffffff, 0x9fb0bb, 0.5));
+const hemi = new THREE.HemisphereLight(0xffffff, 0x9fb0bb, 0.5); // intensities are set per duck (LIGHTING)
+scene.add(hemi);
 const shadow = new ShadowRig(); // sun + floor that only shows the duck's shadow
 scene.add(shadow.group);
 
@@ -64,9 +65,7 @@ const controls = new OrbitControls(camera, renderer.domElement);
 controls.target.set(0, 1.6, 0);
 controls.enableDamping = true;
 
-const duck = await loadDuck(`${import.meta.env.BASE_URL}models/duck.glb`);
-duck.root.position.set(0, 0, 0);
-// ---- surface look: chosen on the first visit, remembered, changeable from the viewer
+// ---- the two ducks: chosen on the first visit, remembered, changeable from the viewer
 const LOOK_KEY = 'goose-ar-look';
 const isLook = (v: string | null): v is Look => v !== null && (LOOKS as string[]).includes(v);
 function readStoredLook(): Look | null {
@@ -76,40 +75,17 @@ function storeLook(look: Look) {
   try { localStorage.setItem(LOOK_KEY, look); } catch { /* private mode: it just asks again next time */ }
 }
 const forcedLook = isLook(params.get('look')) ? (params.get('look') as Look) : null; // ?look=plain skips the picker
-let currentLook: Look = forcedLook ?? readStoredLook() ?? DEFAULT_LOOK;
-const firstVisit = !forcedLook && !readStoredLook();
-duck.setLook(currentLook);
-scene.add(duck.root);
+const storedLook = readStoredLook();
+let currentLook: Look = forcedLook ?? storedLook ?? DEFAULT_LOOK;
+const firstVisit = !forcedLook && !storedLook;
+const ducks: Partial<Record<Look, Duck>> = {};
+const behaviors: Partial<Record<Look, DuckBehavior>> = {};
+let duck!: Duck;             // the duck in the scene right now
+let behavior!: DuckBehavior; // and its behaviour
 
 const LOOK_NAME: Record<Look, string> = { glass: '유리', plain: '일반' };
 const changeLookBtn = $<HTMLButtonElement>('change-look');
 const updateLookButton = () => { changeLookBtn.textContent = `질감 바꾸기 · ${LOOK_NAME[currentLook]}`; };
-updateLookButton();
-const picker = new LookPicker(renderer, $('picker'), envMap, VIEWER_BG, () => duck.clone(), (look) => {
-  currentLook = look;
-  storeLook(look);
-  duck.setLook(look);
-  updateLookButton();
-  picker.close();
-  viewerUi.hidden = false;
-});
-const openPicker = () => { viewerUi.hidden = true; picker.open(); };
-changeLookBtn.onclick = openPicker;
-if ((firstVisit && params.get('ui') !== 'ar') || params.has('pick')) openPicker();
-
-// ---- normal viewer: clip buttons
-for (const name of duck.clips) {
-  const b = document.createElement('button');
-  b.className = 'glass';
-  b.textContent = name;
-  b.onclick = () => { duck.play(name); statusEl.textContent = `재생: ${name}`; };
-  $('clips').appendChild(b);
-}
-const firstClip = params.get('clip') ?? (duck.clips.includes('Idle') ? 'Idle' : duck.clips[0]);
-duck.play(firstClip, 0);
-statusEl.textContent = `재생: ${firstClip}`;
-const t = params.get('t');
-if (t) duck.freezeAt(firstClip, Number(t));
 
 // ---- AR
 // The caption has no box: text, a status dot and a faint scrim. Events show it for a moment; instructions that
@@ -139,13 +115,92 @@ const captionFor = (s: DuckState, prev: DuckState): [string, Tone] =>
   : ['오리를 놓았어요', 'done'];
 const marker = new TargetMarker();
 scene.add(marker.mesh);
-const behavior = new DuckBehavior(duck, (s, prev) => {
+const onDuckState = (owner: Look) => (s: DuckState, prev: DuckState) => {
   comeBtn.classList.toggle('busy', s === 'walk');
   if (s !== 'go') marker.hide();
-  if (duck.root.visible) { const [text, tone] = captionFor(s, prev); showCaption(text, tone, CAPTION_MS); }
-});
+  if (ducks[owner]?.root.visible) { const [text, tone] = captionFor(s, prev); showCaption(text, tone, CAPTION_MS); }
+};
+async function ensureDuck(look: Look): Promise<Duck> {
+  let d = ducks[look];
+  if (!d) {
+    d = await loadDuck(`${import.meta.env.BASE_URL}models/${MODEL_FILE[look]}`);
+    if (look === 'glass') applyGlassLook(d.root);
+    ducks[look] = d;
+    behaviors[look] = new DuckBehavior(d, onDuckState(look));
+  }
+  return d;
+}
+function applyLighting(look: Look) {
+  const l = LIGHTING[look];
+  scene.environmentIntensity = l.env;
+  hemi.intensity = l.hemi;
+  shadow.light.intensity = l.sun;
+}
+/** Put the chosen duck in the scene (loading it first if needed). */
+async function activate(look: Look) {
+  const next = await ensureDuck(look);
+  if (duck && duck !== next) scene.remove(duck.root);
+  duck = next;
+  behavior = behaviors[look]!;
+  currentLook = look;
+  duck.root.position.set(0, 0, 0);
+  duck.root.rotation.set(0, 0, 0);
+  duck.root.scale.setScalar(1);
+  duck.root.visible = true;
+  scene.add(duck.root);
+  applyLighting(look);
+  updateLookButton();
+  duck.play('Idle', 0);
+}
+
+let picker: LookPicker | undefined;
+async function openPicker() {
+  if (!picker) {
+    // The other duck may not be downloaded yet. Keep the viewer on screen meanwhile instead of showing a blank page.
+    changeLookBtn.disabled = true;
+    changeLookBtn.textContent = '불러오는 중…';
+    await Promise.all(LOOKS.map(ensureDuck));      // the previews need both
+    picker = new LookPicker(renderer, $('picker'), envMap, VIEWER_BG, (look) => ducks[look]!.clone(), async (look) => {
+      storeLook(look);
+      await activate(look);
+      statusEl.textContent = '재생: Idle';
+      picker!.close();
+      viewerUi.hidden = false;
+    });
+    changeLookBtn.disabled = false;
+    updateLookButton();
+  }
+  viewerUi.hidden = true;
+  picker.open();
+}
+changeLookBtn.onclick = () => { void openPicker(); };
+
+await activate(currentLook);
+
+// ---- normal viewer: clip buttons
+for (const name of duck.clips) {
+  const b = document.createElement('button');
+  b.className = 'glass';
+  b.textContent = name;
+  b.onclick = () => { duck.play(name); statusEl.textContent = `재생: ${name}`; };
+  $('clips').appendChild(b);
+}
+const firstClip = params.get('clip') ?? (duck.clips.includes('Idle') ? 'Idle' : duck.clips[0]);
+duck.play(firstClip, 0);
+statusEl.textContent = `재생: ${firstClip}`;
+const t = params.get('t');
+if (t) duck.freezeAt(firstClip, Number(t));
+if ((firstVisit && params.get('ui') !== 'ar') || params.has('pick')) {
+  viewerUi.hidden = true;
+  void openPicker();
+}
 const player = new THREE.Vector3();
-if (params.has('debug')) (window as unknown as Record<string, unknown>).__duck = { duck, behavior, camera, scene, marker, picker, look: () => currentLook, exit: () => ar.end() };
+if (params.has('debug')) {
+  (window as unknown as Record<string, unknown>).__duck = {
+    get duck() { return duck; }, get behavior() { return behavior; }, get picker() { return picker; },
+    camera, scene, marker, renderer, look: () => currentLook, exit: () => ar.end(),
+  };
+}
 const ar = new ArController(renderer, overlay, {
   onStart() {
     viewerUi.hidden = true;
@@ -265,7 +320,7 @@ resize();
 const clock = new THREE.Clock();
 renderer.setAnimationLoop((_time, frame) => {
   const dt = clock.getDelta();
-  if (picker.active) { picker.render(dt, clock.elapsedTime); return; }   // first-visit screen: only the previews
+  if (picker?.active) { picker.render(dt, clock.elapsedTime); return; }   // first-visit screen: only the previews
   duck.update(dt);
   shadow.follow(duck.root);
   ar.update(frame);

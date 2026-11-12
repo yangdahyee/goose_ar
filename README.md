@@ -55,33 +55,31 @@ GitHub Pages는 브라우저가 `index.html`을 약 10분간 캐시하게 해서
 - 열 때 서버의 `version.json`과 비교해서 더 새 버전이 있으면 `?v=<번호>` 주소로 한 번 자동 이동한다.
 - 급하면 주소 뒤에 `?v=아무값`을 붙여서 연다.
 
-## 에셋
+## 오리 두 종류 (유리 / 일반)
 
-- `assets/roomducks_duck_only.blend`: 현재 오리의 원본(방에서 오리와 돈다발만 추출). 유리 질감과 일반(Plush) 질감 재질이 둘 다 들어 있다.
-- `assets/duck.blend`: 이전 오리(현재는 쓰지 않음)
-- `public/models/duck.glb`: 앱이 쓰는 모델 (약 1.1MB, 폴리곤 약 3.9만)
-- `tools/export_glb.py`: blend → glb 변환 (`pip install bpy` 필요). 눈·볼터치 텍스처 굽기, 폴리곤 줄이기, 모자·돈다발 고정, 제자리 Idle/Walk/Dance 제작까지 한다.
+| 선택 | 모델 | 설명 |
+|---|---|---|
+| **유리 질감** | `public/models/duck_glass.glb` (1.1MB) | 새 오리(`assets/roomducks_duck_only.blend`). 반질반질한 코팅 재질 |
+| **일반** | `public/models/duck_plain.glb` (2.6MB) | 기존 오리 그대로(`assets/duck.blend`) |
+
+**처음 접속하면 선택 화면**이 뜬다(`src/ui/picker.ts`). 두 오리가 각각 3D로 돌아가고, 탭해서 고르면 그 오리로 시작한다. 선택은 폰에 저장되어(`localStorage`의 `goose-ar-look`) 다음부터는 **고른 오리만 내려받고** 바로 들어가며, 일반 뷰어의 **질감 바꾸기** 버튼으로 다시 고를 수 있다.
+
+- 주소 `?look=glass` / `?look=plain`: 선택 화면을 건너뛰고 그 오리로 연다(저장된 값은 바꾸지 않는다).
+- 주소 `?pick`: 선택 화면을 강제로 띄운다.
+- 기본값은 `src/config.ts`의 `DEFAULT_LOOK`(저장된 게 없을 때).
+- 오리마다 조명이 다르다(`src/duck/looks.ts`의 `LIGHTING`). 유리 오리는 코팅이 번쩍이지 않게 환경광과 태양광을 낮추고 코팅도 약하게(`applyGlassLook`) 두었고, 일반 오리는 원래 조명 그대로다.
+- 선택 화면의 두 오리는 `duck.clone()`으로 만든 복사본이고, 앱의 렌더러 하나가 카드 영역마다 나눠서 그린다.
+
+### 에셋 만들기
+
+- `tools/export_glb.py`: 새 오리 blend → `duck_glass.glb`. 눈·볼터치 텍스처 굽기, 폴리곤 줄이기, 모자·돈다발 고정, 제자리 Idle/Walk/Dance 제작까지 한다 (`pip install bpy` 필요).
 
 ```bash
-python tools/export_glb.py assets/roomducks_duck_only.blend public/models/duck.glb
+python tools/export_glb.py assets/roomducks_duck_only.blend public/models/duck_glass.glb
 ```
 
-### 질감 (유리 / 일반)
-
-같은 GLB에 질감 설정만 바꿔 끼운다(`src/duck/looks.ts`). 두 질감은 Blender 파일의 `Duck_White`와 `Duck_White_Plush` 같은 재질 쌍의 값이다.
-
-| | 유리 | 일반 |
-|---|---|---|
-| 거칠기 | 0.28~0.38 | 0.95 |
-| 코팅 | 0.2~0.35 | 0 |
-| 천 광택(sheen) | 0 | 0.35~0.55 |
-
-**처음 접속하면 선택 화면**이 뜬다(`src/ui/picker.ts`). 유리 오리와 일반 오리가 각각 3D로 돌아가고, 탭해서 고르면 그 질감으로 시작한다. 선택은 폰에 저장되어(`localStorage`의 `goose-ar-look`) 다음부터는 바로 들어가고, 일반 뷰어의 **질감 바꾸기** 버튼으로 다시 고를 수 있다.
-
-- 주소 `?look=glass` / `?look=plain`: 선택 화면을 건너뛰고 그 질감으로 연다(저장된 값은 바꾸지 않는다).
-- 주소 `?pick`: 선택 화면을 강제로 띄운다.
-- 기본값은 `src/config.ts`의 `DEFAULT_LOOK`(저장소를 쓸 수 없을 때의 값). 코드에서는 `duck.setLook('glass' | 'plain')`.
-- 선택 화면의 두 오리는 `duck.clone()`으로 만든 복사본이고, 앱의 렌더러 하나가 카드 영역마다 나눠서 그린다.
+- 기존 오리(`duck_plain.glb`)는 예전 스크립트로 만들었다. 다시 만들어야 하면 커밋 `e940252`의 `tools/export_glb.py`를 쓴다.
+- `assets/roomducks_duck_only.blend`에는 새 오리의 보송한(Plush) 재질도 남아 있다(지금은 쓰지 않음).
 
 ## 애니메이션 클립
 
@@ -89,7 +87,7 @@ python tools/export_glb.py assets/roomducks_duck_only.blend public/models/duck.g
 |---|---|---|
 | `Idle` | 2.0초 (루프) | 숨쉬기 |
 | `Walk` | 0.667초 (루프) | 뒤뚱뒤뚱 걷기. 발이 미끄러지지 않는 이동 속도는 모델 단위로 **2.1 units/초** (`2 × STRIDE ÷ (16프레임 ÷ 24fps)`). 앱에서 오리 크기를 곱해서 쓴다. |
-| `Dance` | 8초 (한 번) | 뛰고 몸을 흔드는 춤. 시작과 끝은 대기 자세로 이어진다 |
+| `Dance` | 유리 오리 8초, 일반 오리 10초 (한 번) | 춤. 끝나면 대기로 돌아간다 |
 
-세 클립은 모두 같은 노드(`Duck_Root`, `Head`, `Hat`, `Duck_Foot_L`, `Duck_Foot_R`, `Cash_Stack_1`, `Cash_Stack_2`)를 제어한다. 클립을 바꿀 때 값이 남지 않도록 의도적으로 맞춰 둔 것이다.
+두 오리 모두 클립 이름이 같고(`Idle`, `Walk`, `Dance`), 한 오리의 세 클립은 같은 노드를 모두 제어한다. 클립을 바꿀 때 값이 남지 않도록 의도적으로 맞춰 둔 것이다. 걷는 간격이 같아서 발이 미끄러지지 않는 속도(2.1 units/초)도 두 오리에 똑같이 쓴다.
 뷰어에서 `?clip=Walk&t=0.2&cam=side`로 특정 포즈를 고정해서 볼 수 있다.

@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneScene } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import { applyLook, type Look } from './looks';
 
 export interface Duck {
   /** Put this in the scene. Feet are at y = 0, the duck faces +Z. */
@@ -18,8 +17,6 @@ export interface Duck {
   freezeAt(clip: string, time: number): void;
   /** Scale so the duck is `metres` tall (1 unit = 1 m when scale is 1). */
   setHeight(metres: number): void;
-  /** Switch the surface look (glass / plain). */
-  setLook(look: Look): void;
   /** An independent copy (own materials and animation), e.g. for the look picker. Shares geometry. */
   clone(): Duck;
 }
@@ -89,7 +86,6 @@ function buildDuck(gltf: GLTF, copy: boolean): Duck {
       current = a;
       mixer.update(0);
     },
-    setLook(look) { applyLook(scene, look); },
     clone: () => buildDuck(gltf, true),
     setHeight(metres) {
       root.scale.setScalar(metres / heightUnits);
