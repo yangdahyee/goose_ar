@@ -125,8 +125,10 @@
         font: 400 16px/1.45 var(--font-cute); text-shadow: 0 1px 3px rgba(0, 0, 0, .3); pointer-events: none; text-wrap: balance; word-break: keep-all; }
       #coach button { pointer-events: auto; padding: 10px 18px; border-radius: 99px; font: 400 15px var(--font-cute); }
       #coach small { font: 400 12px var(--font-ui); opacity: .75; }
-      #coach svg { width: 44px; height: 44px; color: var(--glass-ink); animation: sweep 1.8s ease-in-out infinite; }
-      @keyframes sweep { 0%, 100% { transform: rotate(-14deg) translateX(-8px); } 50% { transform: rotate(14deg) translateX(8px); } }
+      /* While the phone is still looking for the floor, the overlay must cost the camera/compositor nothing: no backdrop blur
+         over the live camera feed and nothing animating. (The first version had only a text line here and found floors fast.) */
+      #coach, #coach button { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(30, 40, 52, .62); border: 1px solid rgba(255, 255, 255, .25); box-shadow: none; }
+      #coach svg { width: 44px; height: 44px; color: var(--glass-ink); }
       /* right rail: three small controls, then the main one at the bottom */
       #overlay .rail { position: absolute; right: max(16px, env(safe-area-inset-right));
         bottom: calc(env(safe-area-inset-bottom, 0px) + 44px); display: flex; flex-direction: column; align-items: center; gap: 12px; }
