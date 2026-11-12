@@ -77,7 +77,7 @@ npm run dev        # http://localhost:5173
 
 ## 오리 크기
 
-AR에서 오리 높이는 **작게 25cm / 보통 45cm / 크게 70cm** 중에서 고른다(`src/config.ts`의 `DUCK_SIZES_M`, 기본 보통). 오른쪽 버튼 줄의 **S/M/L** 버튼을 누를 때마다 바뀌고, 발은 제자리에 두며, 고른 크기는 폰에 저장된다(`goose-ar-size`). 예전에는 30cm로 고정이었다.
+AR에서 오리 높이는 45cm다(`src/config.ts`의 `DUCK_HEIGHT_M`). 예전에는 30cm였다.
 
 ## PC에서 UI 미리보기
 
