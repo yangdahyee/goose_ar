@@ -30,9 +30,22 @@ $('app').appendChild(renderer.domElement);
 const VIEWER_BG = new THREE.Color(0xeef3f6);
 const scene = new THREE.Scene();
 scene.background = VIEWER_BG;
-const camera = new THREE.PerspectiveCamera(40, 1, 0.01, 100);
+const VIEWER_FOV = 40;
+const camera = new THREE.PerspectiveCamera(VIEWER_FOV, 1, 0.01, 100);
 camera.position.set(0, 2.2, 7);
 if (params.get('cam') === 'side') camera.position.set(8, 1.8, 0);
+
+// An AR session overwrites the camera pose and projection. Remember the viewer camera so we can put it back.
+const savedPos = new THREE.Vector3();
+const savedQuat = new THREE.Quaternion();
+const saveViewerCamera = () => { savedPos.copy(camera.position); savedQuat.copy(camera.quaternion); };
+function restoreViewerCamera() {
+  camera.position.copy(savedPos);
+  camera.quaternion.copy(savedQuat);
+  camera.fov = VIEWER_FOV;
+  resize();               // also refreshes aspect and the projection matrix
+  controls.update();
+}
 
 scene.add(new THREE.HemisphereLight(0xffffff, 0x9fb0bb, 1.6));
 const shadow = new ShadowRig(); // sun + floor that only shows the duck's shadow
@@ -72,7 +85,7 @@ const behavior = new DuckBehavior(duck, (s, prev) => {
   if (duck.root.visible) hint.textContent = hintFor(s, prev);
 });
 const player = new THREE.Vector3();
-if (params.has('debug')) (window as unknown as Record<string, unknown>).__duck = { duck, behavior };
+if (params.has('debug')) (window as unknown as Record<string, unknown>).__duck = { duck, behavior, camera, scene };
 const ar = new ArController(renderer, overlay, {
   onStart() {
     viewerUi.hidden = true;
@@ -85,6 +98,7 @@ const ar = new ArController(renderer, overlay, {
     hint.textContent = '바닥을 천천히 비춰 보세요';
   },
   onEnd() {
+    restoreViewerCamera();
     viewerUi.hidden = false;
     scene.background = VIEWER_BG;
     controls.enabled = true;
@@ -119,6 +133,7 @@ danceBtn.onclick = () => behavior.dance();
 $('exit').onclick = () => ar.end();
 startBtn.onclick = async () => {
   startBtn.disabled = true;
+  saveViewerCamera();
   try { await ar.start(); }
   catch (e) { statusEl.textContent = `AR을 시작하지 못했어요: ${(e as Error).message}`; }
   startBtn.disabled = false;
