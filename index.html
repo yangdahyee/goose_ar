@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Duck AR</title>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Nunito:wght@700;800&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap" />
     <style>
       :root {
         --orange: #f08a2e; --orange-d: #c9661a; --cream: #fff6e6; --ink: #2b2118; --bg: #eef3f6;
@@ -15,7 +15,7 @@
         --glass-ink: rgba(255, 255, 255, .74); /* icons: not pure white, so they sit inside the glass */
         /* hat-blue glass for the main action */
         --hat-glass: linear-gradient(160deg, rgba(210, 236, 252, .78), rgba(118, 178, 228, .72)), rgba(120, 172, 218, .2);
-        --font-ui: 'Nunito', system-ui, sans-serif; --font-cute: 'Jua', 'Nunito', system-ui, sans-serif;
+        --font-ui: 'Gowun Dodum', 'Noto Sans KR', system-ui, sans-serif; --font-cute: 'Jua', 'Gowun Dodum', system-ui, sans-serif;
       }
       [hidden] { display: none !important; } /* id rules below set display and would override it */
       html, body { margin: 0; height: 100%; background: var(--bg); overflow: hidden; }
@@ -27,7 +27,7 @@
         var(--bg); }
       body { font: 14px/1.4 var(--font-ui); color: var(--ink); }
       #app { position: fixed; inset: 0; }
-      button { font-family: var(--font-ui); cursor: pointer; border: 0; -webkit-tap-highlight-color: transparent; }
+      button { font-family: var(--font-cute); cursor: pointer; border: 0; -webkit-tap-highlight-color: transparent; }
       button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
       svg.ic { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
       .glass { background: var(--glass); border: 1px solid var(--glass-border); color: #fff;
@@ -41,32 +41,46 @@
         border: 1px solid rgba(255, 255, 255, .9); color: var(--ink); text-shadow: none;
         -webkit-backdrop-filter: blur(18px) saturate(1.5); backdrop-filter: blur(18px) saturate(1.5);
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), 0 8px 24px rgba(70, 100, 140, .16); }
-      .chip { padding: 8px 14px; border-radius: 99px; font-weight: 800; }
+      .chip { padding: 8px 14px; border-radius: 99px; }
 
       /* ---- normal 3D viewer ---- */
       #viewer { position: fixed; inset: 0; pointer-events: none; box-sizing: border-box; padding: 16px;
-        padding-top: max(16px, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom));
+        padding-top: max(18px, calc(env(safe-area-inset-top) + 6px)); padding-bottom: max(44px, calc(env(safe-area-inset-bottom) + 28px));
         display: flex; flex-direction: column; justify-content: space-between; }
       #viewer > * { pointer-events: auto; }
-      #clips { display: flex; gap: 8px; flex-wrap: wrap; }
-      #clips button { padding: 10px 18px; border-radius: 99px; font-weight: 800; transition: transform .12s; }
-      #clips button:active { transform: scale(.95); }
-      /* the clip that is playing */
-      #viewer #clips button.on { background: linear-gradient(160deg, rgba(214, 238, 253, .98), rgba(142, 196, 238, .78));
-        color: #174a7a; border-color: rgba(255, 255, 255, .95); }
-      #build { position: absolute; top: max(14px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right));
-        font: 700 11px var(--font-ui); color: rgba(43, 33, 24, .45); pointer-events: none; }
-      #viewer .bottom { display: flex; flex-direction: column; gap: 10px; }
-      #viewer .actions { display: flex; gap: 10px; }
-      #viewer .actions > button { flex: 1 1 0; min-width: 0; min-height: 54px; box-sizing: border-box; }
-      #start-ar { padding: 0 20px; border-radius: 99px; color: #fff; font: 400 21px var(--font-cute);
-        background: linear-gradient(160deg, rgba(140, 196, 240, .95), rgba(70, 140, 205, .92)); border: 1px solid rgba(255, 255, 255, .6);
+
+      /* top: the three clips as one segmented control with a sliding highlight */
+      #clips { position: relative; align-self: center; width: min(100%, 300px); box-sizing: border-box; padding: 4px;
+        display: grid; grid-template-columns: repeat(3, 1fr); border-radius: 99px; }
+      #clips .ind { position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc((100% - 8px) / 3); border-radius: 99px; pointer-events: none;
+        background: linear-gradient(160deg, rgba(222, 241, 254, .98), rgba(150, 202, 240, .85));
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), 0 4px 12px rgba(70, 120, 180, .25);
+        transform: translateX(calc(var(--idx, 0) * 100%)); transition: transform .28s cubic-bezier(.3, .8, .3, 1); }
+      #clips button { position: relative; z-index: 1; padding: 11px 0; background: none; border-radius: 99px;
+        font: 400 16px var(--font-cute); color: rgba(43, 33, 24, .6); transition: color .2s; }
+      #clips button.on { color: #174a7a; }
+
+      #build { position: absolute; left: 0; right: 0; bottom: max(12px, env(safe-area-inset-bottom)); text-align: center;
+        font: 400 10px var(--font-ui); color: rgba(43, 33, 24, .4); pointer-events: none; }
+
+      /* bottom: a big primary "AR 시작" and a small secondary "질감 바꾸기"; the status line only when there is something to say */
+      #viewer .bottom { display: flex; flex-direction: column; gap: 12px; }
+      #viewer .actions { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: stretch; }
+      #viewer .actions > button { min-width: 0; min-height: 62px; box-sizing: border-box; }
+      #change-look { display: flex; align-items: center; gap: 10px; padding: 0 20px 0 16px; border-radius: 31px; text-align: left; white-space: nowrap; }
+      #change-look svg { width: 24px; height: 24px; flex: none; color: #4a7fb0; }
+      #change-look .txt { display: flex; flex-direction: column; gap: 2px; line-height: 1.1; }
+      #change-look .cap { font: 400 11px var(--font-ui); color: rgba(43, 33, 24, .55); }
+      #change-look b { font: 400 17px var(--font-cute); color: var(--ink); }
+      #start-ar { display: flex; align-items: center; justify-content: center; gap: 10px; border-radius: 31px; color: #fff; font: 400 24px var(--font-cute);
+        background: linear-gradient(160deg, rgba(140, 198, 244, .97), rgba(66, 136, 204, .95)); border: 1px solid rgba(255, 255, 255, .65);
         -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); text-shadow: 0 1px 4px rgba(24, 70, 120, .45);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, .6), 0 8px 24px rgba(60, 110, 160, .3); }
-      #change-look { padding: 0 14px; border-radius: 99px; font: 800 14px var(--font-ui); white-space: nowrap; }
-      #status { align-self: stretch; padding: 9px 16px; border-radius: 20px; font: 700 13px/1.45 var(--font-ui); text-align: center; text-wrap: balance; word-break: keep-all; }
-      #status:empty { display: none; }
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, .7), 0 12px 28px rgba(60, 120, 190, .38); transition: transform .12s; }
+      #start-ar svg { width: 27px; height: 27px; flex: none; filter: drop-shadow(0 1px 2px rgba(24, 70, 120, .4)); }
+      #start-ar:not(:disabled):active { transform: scale(.97); }
       #start-ar:disabled { opacity: .5; box-shadow: none; }
+      #status { align-self: stretch; padding: 9px 16px; border-radius: 20px; font: 400 14px/1.5 var(--font-ui); text-align: center; text-wrap: balance; word-break: keep-all; }
+      #status:empty { display: none; }
 
       /* ?diag: on-screen diagnostics (see src/ui/diag.ts) */
       #diag { position: fixed; top: max(4px, env(safe-area-inset-top)); left: 4px; right: 4px; z-index: 60; margin: 0; padding: 6px 8px;
@@ -78,14 +92,14 @@
         justify-content: center; gap: 18px; padding: 24px 16px; padding-top: max(24px, env(safe-area-inset-top));
         padding-bottom: max(24px, env(safe-area-inset-bottom)); overflow-y: auto; }
       #picker h1 { margin: 0; font: 400 28px var(--font-cute); text-align: center; text-wrap: balance; }
-      #picker .sub { margin: -10px 0 0; color: rgba(43, 33, 24, .6); font-weight: 700; text-align: center; }
+      #picker .sub { margin: -10px 0 0; color: rgba(43, 33, 24, .6); text-align: center; }
       #picker .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; width: min(100%, 520px); }
       .pick { display: flex; flex-direction: column; align-items: stretch; gap: 8px; padding: 0; background: none; color: var(--ink); text-align: center; }
       .pick .stage { display: block; height: clamp(220px, 38vh, 330px); border-radius: 26px; border: 1.5px solid rgba(43, 33, 24, .14);
         transition: border-color .15s, transform .15s; }
       .pick strong { font: 400 19px var(--font-cute); }
-      .pick small { color: rgba(43, 33, 24, .6); font-weight: 700; font-size: 13px; }
-      .pick .stage { display: grid; place-items: center; color: rgba(43, 33, 24, .5); font-weight: 800; }
+      .pick small { color: rgba(43, 33, 24, .6); font-size: 13px; }
+      .pick .stage { display: grid; place-items: center; color: rgba(43, 33, 24, .5); font-family: var(--font-cute); }
       .pick.loading .stage::after { content: '불러오는 중…'; animation: blink 1.2s ease-in-out infinite; }
       .pick.failed .stage::after { content: '불러오지 못했어요'; }
       .pick:disabled { cursor: default; }
@@ -102,7 +116,7 @@
         background: linear-gradient(rgba(0, 0, 0, .32), rgba(0, 0, 0, 0)); opacity: 0; transition: opacity .3s; }
       #scrim.show { opacity: 1; }
       #hint { position: absolute; top: calc(max(20px, env(safe-area-inset-top)) + 46px); left: 50%; transform: translate(-50%, -4px);
-        max-width: calc(100% - 32px); text-align: center; white-space: nowrap; font: 800 16px/1.3 var(--font-ui); color: #fff;
+        max-width: calc(100% - 32px); text-align: center; white-space: nowrap; font: 400 17px/1.3 var(--font-cute); color: #fff;
         text-shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 2px 14px rgba(0, 0, 0, .35); pointer-events: none;
         opacity: 0; transition: opacity .3s, transform .3s; }
       #hint.show { opacity: 1; transform: translate(-50%, 0); }
@@ -112,9 +126,9 @@
       /* floor coach, shown only while no surface is found yet */
       #coach { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%); width: min(310px, 84%); box-sizing: border-box;
         padding: 22px 18px; border-radius: 26px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px;
-        font: 800 15px/1.45 var(--font-ui); text-shadow: 0 1px 3px rgba(0, 0, 0, .3); pointer-events: none; text-wrap: balance; }
-      #coach button { pointer-events: auto; padding: 10px 18px; border-radius: 99px; font: 800 14px var(--font-ui); }
-      #coach small { font: 700 12px var(--font-ui); opacity: .72; }
+        font: 400 16px/1.45 var(--font-cute); text-shadow: 0 1px 3px rgba(0, 0, 0, .3); pointer-events: none; text-wrap: balance; word-break: keep-all; }
+      #coach button { pointer-events: auto; padding: 10px 18px; border-radius: 99px; font: 400 15px var(--font-cute); }
+      #coach small { font: 400 12px var(--font-ui); opacity: .75; }
       #coach svg { width: 44px; height: 44px; color: var(--glass-ink); animation: sweep 1.8s ease-in-out infinite; }
       @keyframes sweep { 0%, 100% { transform: rotate(-14deg) translateX(-8px); } 50% { transform: rotate(14deg) translateX(8px); } }
       /* right rail: three small controls, then the main one at the bottom */
@@ -137,7 +151,7 @@
       @keyframes breath { 50% { transform: scale(1.06); } }
       /* photo mode: nothing visible except a faint corner button that brings the UI back */
       #show-ui { display: none; position: absolute; right: max(16px, env(safe-area-inset-right));
-        bottom: max(16px, env(safe-area-inset-bottom)); padding: 10px 14px; border-radius: 99px; opacity: .35; font-size: 13px; font-weight: 800; }
+        bottom: max(16px, env(safe-area-inset-bottom)); padding: 10px 14px; border-radius: 99px; opacity: .35; font-size: 13px; }
       #overlay.photo > :not(#show-ui) { visibility: hidden; }
       #overlay.photo #show-ui { display: block; }
       @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
@@ -149,6 +163,8 @@
         <symbol id="i-note" viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></symbol>
         <symbol id="i-cam" viewBox="0 0 24 24"><path d="M3 8.5A2.5 2.5 0 0 1 5.5 6H8l1.4-2h5.2L16 6h2.5A2.5 2.5 0 0 1 21 8.5v9a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z"/><circle cx="12" cy="13" r="3.6"/></symbol>
         <symbol id="i-redo" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14-4L4 9"/><path d="M4 4v5h5"/><path d="M4 13a8 8 0 0 0 14 4l2-2"/><path d="M20 20v-5h-5"/></symbol>
+        <symbol id="i-ar" viewBox="0 0 24 24"><path d="M12 2.8 3.6 7.4v9.2L12 21.2l8.4-4.6V7.4z"/><path d="M3.6 7.4 12 12l8.4-4.6M12 12v9.2"/></symbol>
+        <symbol id="i-style" viewBox="0 0 24 24"><path d="M10 3.2l1.7 4.6 4.6 1.7-4.6 1.7L10 15.8l-1.7-4.6-4.6-1.7 4.6-1.7z"/><path d="M18.2 14.4l.8 2.1 2.1.8-2.1.8-.8 2.1-.8-2.1-2.1-.8 2.1-.8z"/></symbol>
         <symbol id="i-phone" viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></symbol>
       </defs>
     </svg>
@@ -166,11 +182,11 @@
 
     <div id="viewer">
       <div id="build"></div>
-      <div id="clips"></div>
+      <div id="clips" class="glass" role="group" aria-label="동작 선택"><span class="ind"></span></div>
       <div class="bottom">
         <div class="actions">
-          <button id="start-ar" disabled>AR 시작</button>
-          <button id="change-look" class="glass" aria-label="질감 바꾸기">질감 바꾸기</button>
+          <button id="change-look" class="glass" aria-label="질감 바꾸기"><svg class="ic"><use href="#i-style" /></svg><span class="txt"><span class="cap">질감 바꾸기</span><b id="look-name">유리</b></span></button>
+          <button id="start-ar" disabled><svg class="ic"><use href="#i-ar" /></svg><span>AR 시작</span></button>
         </div>
         <span id="status" class="chip glass" role="status"></span>
       </div>

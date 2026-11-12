@@ -53,7 +53,7 @@ scene.environment = envMap;
 scene.environmentIntensity = 0.55;
 const VIEWER_FOV = 40;
 const camera = new THREE.PerspectiveCamera(VIEWER_FOV, 1, 0.01, 100);
-camera.position.set(0, 2.2, 7);
+camera.position.set(0, 2.5, 9.6);   // far enough that the duck is about half the screen, centred
 if (params.get('cam') === 'side') camera.position.set(8, 1.8, 0);
 
 // An AR session overwrites the camera pose and projection. Remember the viewer camera so we can put it back.
@@ -75,7 +75,7 @@ if (noShadow) shadow.light.castShadow = false;
 scene.add(shadow.group);
 
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(0, 1.6, 0);
+controls.target.set(0, 1.5, 0);
 controls.enableDamping = true;
 
 // ---- the two ducks: chosen on the first visit, remembered, changeable from the viewer
@@ -103,16 +103,18 @@ function addStatus(message: string) {
   statusEl.textContent = statusParts.join(' · ');
 }
 function markClip(name: string) {
-  document.querySelectorAll<HTMLButtonElement>('#clips button').forEach((b) => {
+  const buttons = [...document.querySelectorAll<HTMLButtonElement>('#clips button')];
+  buttons.forEach((b) => {
     const on = b.dataset.clip === name;
     b.classList.toggle('on', on);
     b.setAttribute('aria-pressed', String(on));
   });
+  $('clips').style.setProperty('--idx', String(Math.max(0, buttons.findIndex((b) => b.dataset.clip === name))));  // slides the highlight
 }
 
 const LOOK_NAME: Record<Look, string> = { glass: '유리', plain: '일반' };
 const changeLookBtn = $<HTMLButtonElement>('change-look');
-const updateLookButton = () => { changeLookBtn.textContent = `질감 바꾸기 · ${LOOK_NAME[currentLook]}`; };
+const updateLookButton = () => { $('look-name').textContent = LOOK_NAME[currentLook]; };
 
 // ---- AR
 // The caption has no box: text, a status dot and a faint scrim. Events show it for a moment; instructions that
@@ -269,7 +271,6 @@ const CLIP_ORDER = ['Idle', 'Walk', 'Dance'];   // the same order for both ducks
 const clipNames = [...duck.clips].sort((a, b) => (CLIP_ORDER.indexOf(a) + 99) % 99 - (CLIP_ORDER.indexOf(b) + 99) % 99);
 for (const name of clipNames) {
   const b = document.createElement('button');
-  b.className = 'glass';
   b.textContent = name;
   b.dataset.clip = name;
   b.onclick = () => { duck.play(name); markClip(name); };
