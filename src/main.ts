@@ -2,7 +2,9 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
-// M0: plain 3D viewer. AR (M2) and behaviour (M3) come later.
+// M0/M1: plain 3D viewer with clip switching. AR (M2) and behaviour (M3) come later.
+// Debug params: ?clip=Walk&t=0.2 freezes a pose, ?cam=side looks from the side.
+const params = new URLSearchParams(location.search);
 const app = document.getElementById('app')!;
 const status = document.getElementById('status')!;
 
@@ -15,6 +17,7 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xeef3f6);
 const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
 camera.position.set(0, 2.2, 7);
+if (params.get('cam') === 'side') camera.position.set(8, 1.8, 0);
 
 scene.add(new THREE.HemisphereLight(0xffffff, 0x9fb0bb, 1.6));
 const sun = new THREE.DirectionalLight(0xffffff, 2);
@@ -26,16 +29,35 @@ controls.target.set(0, 1.6, 0);
 controls.enableDamping = true;
 
 let mixer: THREE.AnimationMixer | undefined;
+let current: THREE.AnimationAction | undefined;
+const actions = new Map<string, THREE.AnimationAction>();
+
+function play(name: string) {
+  const next = actions.get(name);
+  if (!next || next === current) return;
+  next.reset().fadeIn(0.25).play();
+  current?.fadeOut(0.25);
+  current = next;
+  status.textContent = `재생: ${name}`;
+}
 
 new GLTFLoader().load(
   `${import.meta.env.BASE_URL}models/duck.glb`,
   (gltf) => {
     scene.add(gltf.scene);
-    if (gltf.animations.length) {
-      mixer = new THREE.AnimationMixer(gltf.scene);
-      mixer.clipAction(gltf.animations[0]).play();
+    mixer = new THREE.AnimationMixer(gltf.scene);
+    const bar = document.getElementById('clips')!;
+    for (const clip of gltf.animations) {
+      actions.set(clip.name, mixer.clipAction(clip));
+      const b = document.createElement('button');
+      b.textContent = clip.name;
+      b.onclick = () => play(clip.name);
+      bar.appendChild(b);
     }
-    status.textContent = `애니메이션: ${gltf.animations.map((a) => a.name).join(', ') || '없음'}`;
+    const first = params.get('clip') ?? (actions.has('Idle') ? 'Idle' : gltf.animations[0]?.name);
+    if (first) play(first);
+    const t = params.get('t');
+    if (t && current) { current.fadeIn(0); current.paused = true; current.time = Number(t); mixer.update(0); }
   },
   undefined,
   () => { status.textContent = '모델을 불러오지 못했어요.'; },

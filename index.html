@@ -7,12 +7,16 @@
     <style>
       html, body { margin: 0; height: 100%; background: #eef3f6; overflow: hidden; }
       #app { position: fixed; inset: 0; }
+      #clips { position: fixed; left: 16px; right: 16px; top: 16px; display: flex; gap: 8px; flex-wrap: wrap; }
+      #clips button { font: 700 14px system-ui, sans-serif; padding: 10px 16px; border: 0; border-radius: 10px;
+        background: #e8731a; color: #fff; }
       #status { position: fixed; left: 16px; bottom: 16px; padding: 8px 12px; border-radius: 10px;
         font: 14px/1.4 system-ui, sans-serif; color: #16242d; background: rgba(255,255,255,.85); }
     </style>
   </head>
   <body>
     <div id="app"></div>
+    <div id="clips"></div>
     <div id="status">불러오는 중…</div>
     <script type="module" src="/src/main.ts"></script>
   </body>

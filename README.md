@@ -26,3 +26,14 @@ npm run dev        # http://localhost:5173
 ```bash
 python tools/export_glb.py assets/duck.blend public/models/duck.glb
 ```
+
+## 애니메이션 클립
+
+| 클립 | 길이 | 설명 |
+|---|---|---|
+| `Idle` | 2.0초 (루프) | 숨쉬기 |
+| `Walk` | 0.667초 (루프) | 뒤뚱뒤뚱 걷기. 발이 미끄러지지 않는 이동 속도는 모델 단위로 **2.1 units/초** (`2 × STRIDE ÷ (16프레임 ÷ 24fps)`). 앱에서 오리 크기를 곱해서 쓴다. |
+| `Dance` | 10초 | 기존 춤 |
+
+세 클립은 모두 같은 노드(`Dance_Hips`, `Dance_Neck`, `Dance_Arms`, `Foot_L`, `Foot_R`)를 제어한다. 클립을 바꿀 때 값이 남지 않도록 의도적으로 맞춰 둔 것이다.
+뷰어에서 `?clip=Walk&t=0.2&cam=side`로 특정 포즈를 고정해서 볼 수 있다.

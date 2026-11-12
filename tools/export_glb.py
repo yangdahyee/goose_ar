@@ -6,8 +6,9 @@ What it does: bakes metaballs into meshes, drops render-hidden objects,
 replaces procedural materials with plain PBR, bakes the eye/blush shaders
 to textures, and exports baked animation.
 """
-import sys,tempfile,bmesh,numpy as np
-import bpy
+import sys,tempfile
+import bpy,bmesh
+import numpy as np
 src,dst=sys.argv[-2:]
 bpy.ops.wm.open_mainfile(filepath=src)
 sc=bpy.context.scene
@@ -98,5 +99,71 @@ for m in bpy.data.materials:
     elif p:
         r=p.inputs['Roughness'].default_value
         simple(m,tuple(p.inputs['Base Color'].default_value),max(0.6,r-0.1) if r>0.5 else r)
+
+# ---------------------------------------------------------------- animations
+# Clips: Idle (breathing), Walk (waddle), Dance (existing). Z up, the duck faces -Y.
+# Walk is built so the feet do not slide: stance speed = 2*STRIDE / (WALK_FRAMES/fps).
+import math
+WALK_FRAMES=16; IDLE_FRAMES=48
+STRIDE=0.35; FOOT_LIFT=0.12
+HIPS0=(0,0,0.15); NECK0=(0,-0.05,1.3); ARMS0=(0,-0.55,1.1)
+
+def split_feet():
+    feet=bpy.data.objects.get("Feet_Meta_Mesh")
+    bpy.ops.object.select_all(action='DESELECT'); feet.select_set(True); bpy.context.view_layer.objects.active=feet
+    bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.mesh.separate(type='LOOSE'); bpy.ops.object.mode_set(mode='OBJECT')
+    parts=[o for o in bpy.data.objects if o.name.startswith("Feet_Meta_Mesh")]
+    assert len(parts)==2,len(parts)
+    for o in parts:
+        cx=sum(v.co.x for v in o.data.vertices)/len(o.data.vertices)
+        o.name="Foot_L" if cx>0 else "Foot_R"
+    return bpy.data.objects["Foot_L"],bpy.data.objects["Foot_R"]
+
+def foot_pose(p):
+    if p<0.5: return (0,-STRIDE+2*STRIDE*(p/0.5),0)                      # stance: slides back
+    q=(p-0.5)/0.5; return (0,STRIDE-2*STRIDE*q,FOOT_LIFT*math.sin(math.pi*q))  # swing: lifts forward
+
+def add_clip(obj,name,start,end,fn):
+    ad=obj.animation_data_create(); act=bpy.data.actions.new(f"{obj.name}_{name}")
+    ad.action=act
+    for f in range(start,end+1):
+        loc,rot=fn(f); obj.location=loc; obj.rotation_euler=rot
+        obj.keyframe_insert('location',frame=f); obj.keyframe_insert('rotation_euler',frame=f)
+    push_to_nla(obj,name)
+
+def push_to_nla(obj,name):
+    ad=obj.animation_data; act=ad.action
+    tr=ad.nla_tracks.new(); tr.name=name
+    st=tr.strips.new(name,0,act)   # start at 0 so clip time starts at 0 s
+    if hasattr(st,'action_slot') and act.slots: st.action_slot=act.slots[0]
+    ad.action=None
+
+def build_animations():
+    foot_l,foot_r=split_feet()
+    H,N,A=bpy.data.objects["Dance_Hips"],bpy.data.objects["Dance_Neck"],bpy.data.objects["Dance_Arms"]
+    push_to_nla(H,"Dance"); push_to_nla(N,"Dance"); push_to_nla(A,"Dance")   # existing dance
+    for ft in (foot_l,foot_r): add_clip(ft,"Dance",1,241,lambda f:((0,0,0),(0,0,0)))  # rest keys so Walk does not leak
+    def idle(kind):
+        def fn(f):
+            p=(f-1)/IDLE_FRAMES; s=math.sin(2*math.pi*p); s2=math.sin(2*math.pi*p+0.8)
+            if kind=='H': return ((0,0,HIPS0[2]+0.012*s),(0,0.02*s,0))
+            if kind=='N': return ((0,NECK0[1],NECK0[2]+0.008*s2),(0.02*s2,0,0.03*s))
+            return ((0,ARMS0[1],ARMS0[2]+0.012*math.sin(2*math.pi*p+0.4)),(0,0,0))
+        return fn
+    def walk(kind,phase=0.0):
+        def fn(f):
+            p=(f-1)/WALK_FRAMES; s=math.sin(2*math.pi*p); b=math.sin(4*math.pi*p)
+            if kind=='H': return ((0,0,HIPS0[2]+0.04*(1-math.cos(4*math.pi*p))/2),(0,0.10*s,0.10*s))
+            if kind=='N': return ((0,NECK0[1],NECK0[2]-0.012*math.cos(4*math.pi*p)),(0.04*math.sin(4*math.pi*p+0.5),-0.08*s,-0.07*s))
+            if kind=='A': return ((0,ARMS0[1],ARMS0[2]+0.015*b),(-0.03*b,0,0))
+            return (foot_pose((p+phase)%1.0),(0,0,0))
+        return fn
+    for kind,ob in (('H',H),('N',N),('A',A)):
+        add_clip(ob,"Idle",1,IDLE_FRAMES+1,idle(kind)); add_clip(ob,"Walk",1,WALK_FRAMES+1,walk(kind))
+    for ft in (foot_l,foot_r): add_clip(ft,"Idle",1,IDLE_FRAMES+1,lambda f:((0,0,0),(0,0,0)))
+    add_clip(foot_l,"Walk",1,WALK_FRAMES+1,walk('F',0.0)); add_clip(foot_r,"Walk",1,WALK_FRAMES+1,walk('F',0.5))
+    for ob in (H,N,A,foot_l,foot_r): ob.location=ob.location  # leave at last sampled value; NLA drives the export
+build_animations()
 sc.frame_set(1)
-bpy.ops.export_scene.gltf(filepath=dst,export_format='GLB',export_apply=True,export_animations=True,export_animation_mode='ACTIVE_ACTIONS',export_lights=False,export_cameras=False,export_force_sampling=True,export_frame_range=True)
+bpy.ops.export_scene.gltf(filepath=dst,export_format='GLB',export_apply=True,export_animations=True,export_animation_mode='NLA_TRACKS',export_lights=False,export_cameras=False,export_force_sampling=True,export_optimize_animation_size=False,export_optimize_animation_keep_anim_object=True)
