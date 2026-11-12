@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { DEFAULT_LOOK, DEFAULT_SIZE, DUCK_SIZES_M, MAX_TAP_DISTANCE_M, PLACE_ANYWAY_S, SCAN_SECOND_TIP_S } from './config';
+import { DEFAULT_LOOK, DUCK_HEIGHT_M, MAX_TAP_DISTANCE_M, PLACE_ANYWAY_S, SCAN_SECOND_TIP_S } from './config';
 import { DuckBehavior, type DuckState } from './duck/behavior';
 import { loadDuck, type Duck } from './duck/duck';
 import { applyGlassLook, downgradeToStandard, LIGHTING, LOOKS, MODEL_FILE, type Look } from './duck/looks';
@@ -21,8 +21,7 @@ const hint = $('hint'), replaceBtn = $<HTMLButtonElement>('replace'), startBtn =
 const coach = $('coach'), scrim = $('scrim');
 const comeBtn = $<HTMLButtonElement>('come'), danceBtn = $<HTMLButtonElement>('dance');
 const photoBtn = $<HTMLButtonElement>('photo'), showUiBtn = $<HTMLButtonElement>('show-ui');
-const sizeBtn = $<HTMLButtonElement>('size');
-const setPlacedUi = (placed: boolean) => { comeBtn.hidden = danceBtn.hidden = replaceBtn.hidden = photoBtn.hidden = sizeBtn.hidden = !placed; };
+const setPlacedUi = (placed: boolean) => { comeBtn.hidden = danceBtn.hidden = replaceBtn.hidden = photoBtn.hidden = !placed; };
 // Photo mode hides every overlay element so a phone screenshot or screen recording is clean.
 const setPhotoMode = (on: boolean) => overlay.classList.toggle('photo', on);
 
@@ -117,16 +116,6 @@ const LOOK_NAME: Record<Look, string> = { glass: '유리', plain: '일반' };
 const changeLookBtn = $<HTMLButtonElement>('change-look');
 const updateLookButton = () => { $('look-name').textContent = LOOK_NAME[currentLook]; };
 
-// ---- duck size in AR: S / M / L, remembered
-type SizeKey = keyof typeof DUCK_SIZES_M;
-const SIZE_KEY = 'goose-ar-size';
-const SIZE_NAME: Record<SizeKey, string> = { S: '작게', M: '보통', L: '크게' };
-const SIZE_ORDER: SizeKey[] = ['S', 'M', 'L'];
-let size: SizeKey = (() => {
-  try { const v = localStorage.getItem(SIZE_KEY); return (SIZE_ORDER as string[]).includes(v ?? '') ? (v as SizeKey) : DEFAULT_SIZE; }
-  catch { return DEFAULT_SIZE; }
-})();
-sizeBtn.textContent = size;
 
 // ---- AR
 // The caption has no box: text, a status dot and a faint scrim. Events show it for a moment; instructions that
@@ -326,7 +315,7 @@ const ar = new ArController(renderer, overlay, {
     scene.background = null;
     controls.enabled = false;
     duck.root.visible = false;            // appears when the user taps a spot
-    duck.setHeight(DUCK_SIZES_M[size]);
+    duck.setHeight(DUCK_HEIGHT_M);
     setPlacedUi(false);
     setPhotoMode(false);
     marker.hide();
@@ -375,13 +364,6 @@ const ar = new ArController(renderer, overlay, {
 });
 scene.add(ar.reticle);
 
-sizeBtn.onclick = () => {
-  size = SIZE_ORDER[(SIZE_ORDER.indexOf(size) + 1) % SIZE_ORDER.length];
-  try { localStorage.setItem(SIZE_KEY, size); } catch { /* ignore */ }
-  sizeBtn.textContent = size;
-  if (renderer.xr.isPresenting) duck.setHeight(DUCK_SIZES_M[size]);   // the feet stay where they are
-  showCaption(`크기: ${SIZE_NAME[size]} (${Math.round(DUCK_SIZES_M[size] * 100)}cm)`, 'info', 1400);
-};
 placeAnywayBtn.onclick = () => { diag?.log('tapped 그냥 놓기'); ar.placeEstimated(); };
 replaceBtn.onclick = () => {
   duck.root.visible = false;
