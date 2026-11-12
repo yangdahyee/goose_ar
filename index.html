@@ -127,8 +127,8 @@
       #coach small { font: 400 12px var(--font-ui); opacity: .75; }
       /* While the phone is still looking for the floor, the overlay must cost the camera/compositor nothing: no backdrop blur
          over the live camera feed and nothing animating. (The first version had only a text line here and found floors fast.) */
-      #coach, #coach button { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(30, 40, 52, .62); border: 1px solid rgba(255, 255, 255, .25); box-shadow: none; }
-      #coach svg { width: 44px; height: 44px; color: var(--glass-ink); }
+      #coach { color: #fff; padding: 0; text-shadow: 0 1px 2px rgba(0, 0, 0, .55), 0 2px 14px rgba(0, 0, 0, .4); }
+      #coach button { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(30, 40, 52, .55); border: 1px solid rgba(255, 255, 255, .3); color: #fff; box-shadow: none; }
       /* right rail: three small controls, then the main one at the bottom */
       #overlay .rail { position: absolute; right: max(16px, env(safe-area-inset-right));
         bottom: calc(env(safe-area-inset-bottom, 0px) + 44px); display: flex; flex-direction: column; align-items: center; gap: 12px; }
@@ -161,7 +161,6 @@
         <symbol id="i-note" viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></symbol>
         <symbol id="i-cam" viewBox="0 0 24 24"><path d="M3 8.5A2.5 2.5 0 0 1 5.5 6H8l1.4-2h5.2L16 6h2.5A2.5 2.5 0 0 1 21 8.5v9a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z"/><circle cx="12" cy="13" r="3.6"/></symbol>
         <symbol id="i-redo" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14-4L4 9"/><path d="M4 4v5h5"/><path d="M4 13a8 8 0 0 0 14 4l2-2"/><path d="M20 20v-5h-5"/></symbol>
-        <symbol id="i-phone" viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></symbol>
       </defs>
     </svg>
 
@@ -191,7 +190,7 @@
     <div id="overlay" hidden>
       <div id="scrim"></div>
       <div id="hint" data-tone="info" role="status" aria-live="polite"></div>
-      <div id="coach" class="glass" hidden><svg class="ic"><use href="#i-phone" /></svg><span id="coach-text">폰을 천천히 움직여서<br />바닥을 찾아 보세요</span>
+      <div id="coach" hidden><span id="coach-text">폰을 천천히 움직여서<br />바닥을 찾아 보세요</span>
         <button id="place-anyway" class="glass" hidden>그냥 놓기</button><small>나가려면 뒤로 가기</small></div>
       <div class="rail">
         <button id="dance" class="sm glass" aria-label="춤 춰" hidden><svg class="ic"><use href="#i-note" /></svg></button>
