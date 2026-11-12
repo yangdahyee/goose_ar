@@ -13,7 +13,7 @@ const params = new URLSearchParams(location.search);
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const statusEl = $('status'), viewerUi = $('viewer'), overlay = $('overlay');
 const hint = $('hint'), replaceBtn = $<HTMLButtonElement>('replace'), startBtn = $<HTMLButtonElement>('start-ar');
-const comeLabel = $('come-label');
+const coach = $('coach'), scrim = $('scrim');
 const comeBtn = $<HTMLButtonElement>('come'), danceBtn = $<HTMLButtonElement>('dance');
 const photoBtn = $<HTMLButtonElement>('photo'), showUiBtn = $<HTMLButtonElement>('show-ui');
 const setPlacedUi = (placed: boolean) => { comeBtn.hidden = danceBtn.hidden = replaceBtn.hidden = photoBtn.hidden = !placed; };
@@ -75,20 +75,37 @@ const t = params.get('t');
 if (t) duck.freezeAt(firstClip, Number(t));
 
 // ---- AR
-const hintFor = (s: DuckState, prev: DuckState) =>
-  s === 'walk' ? '오리가 걸어와요…'
-  : s === 'go' ? '오리가 걸어가요…'
-  : s === 'dance' ? '신나게 춤추는 중!'
-  : prev === 'walk' || prev === 'go' ? '도착했어요'
-  : prev === 'dance' ? '춤 끝!'
-  : '오리를 놓았어요';
+// The caption has no box: text, a status dot and a faint scrim. Events show it for a moment; instructions that
+// must stay (tap to place) pass no duration and stay until replaced or hidden.
+type Tone = 'info' | 'walk' | 'done' | 'dance';
+let captionTimer: number | undefined;
+function showCaption(text: string, tone: Tone = 'info', ms?: number) {
+  hint.textContent = text;
+  hint.dataset.tone = tone;
+  hint.classList.add('show');
+  scrim.classList.add('show');
+  window.clearTimeout(captionTimer);
+  if (ms) captionTimer = window.setTimeout(hideCaption, ms);
+}
+function hideCaption() {
+  window.clearTimeout(captionTimer);
+  hint.classList.remove('show');
+  scrim.classList.remove('show');
+}
+const CAPTION_MS = 2200;
+const captionFor = (s: DuckState, prev: DuckState): [string, Tone] =>
+  s === 'walk' ? ['오리가 걸어와요…', 'walk']
+  : s === 'go' ? ['오리가 걸어가요…', 'walk']
+  : s === 'dance' ? ['신나게 춤추는 중!', 'dance']
+  : prev === 'walk' || prev === 'go' ? ['도착했어요', 'done']
+  : prev === 'dance' ? ['춤 끝!', 'done']
+  : ['오리를 놓았어요', 'done'];
 const marker = new TargetMarker();
 scene.add(marker.mesh);
 const behavior = new DuckBehavior(duck, (s, prev) => {
   comeBtn.classList.toggle('busy', s === 'walk');
   if (s !== 'go') marker.hide();
-  comeLabel.textContent = s === 'walk' ? '오는 중…' : '이리 와';
-  if (duck.root.visible) hint.textContent = hintFor(s, prev);
+  if (duck.root.visible) { const [text, tone] = captionFor(s, prev); showCaption(text, tone, CAPTION_MS); }
 });
 const player = new THREE.Vector3();
 if (params.has('debug')) (window as unknown as Record<string, unknown>).__duck = { duck, behavior, camera, scene, marker };
@@ -102,9 +119,12 @@ const ar = new ArController(renderer, overlay, {
     setPlacedUi(false);
     setPhotoMode(false);
     marker.hide();
-    hint.textContent = '바닥을 천천히 비춰 보세요';
+    hideCaption();
+    coach.hidden = false;         // until the first surface is found
   },
   onEnd() {
+    hideCaption();
+    coach.hidden = true;
     marker.hide();                // the destination ring belongs to the AR session's coordinates
     behavior.setState('idle');    // do not leave the duck "walking" in the plain viewer
     restoreViewerCamera();
@@ -119,18 +139,22 @@ const ar = new ArController(renderer, overlay, {
   onMove(origin, direction) {
     const point = rayPlaneHit(origin, direction, duck.root.position.y, MAX_TAP_DISTANCE_M);
     if (params.has('debug')) (window as unknown as Record<string, unknown>).__lastRay = { origin: origin.toArray(), direction: direction.toArray(), floorY: duck.root.position.y, point: point?.toArray() };
-    if (!point) { hint.textContent = '바닥을 탭해 주세요'; return; }
+    if (!point) { showCaption('바닥을 탭해 주세요', 'info', 1800); return; }
     marker.show(point);
     behavior.goTo(point);
   },
   onSurface(found) {
-    if (ar.isPlacing) hint.textContent = found ? '탭해서 오리를 놓으세요' : '바닥을 천천히 비춰 보세요';
+    if (!ar.isPlacing) return;
+    coach.hidden = found;
+    if (found) showCaption('탭해서 오리를 놓으세요');   // stays until the duck is placed
+    else hideCaption();
   },
   onPlace(position, cam) {
     duck.root.position.copy(position);
     duck.root.rotation.y = yawToward(position, cam); // face the player
     duck.root.visible = true;
-    behavior.setState('idle');
+    coach.hidden = true;
+    behavior.setState('idle');      // its caption: "오리를 놓았어요"
     setPlacedUi(true);
   },
 });
@@ -139,7 +163,8 @@ scene.add(ar.reticle);
 replaceBtn.onclick = () => {
   duck.root.visible = false;
   setPlacedUi(false);
-  hint.textContent = '바닥을 천천히 비춰 보세요';
+  hideCaption();
+  coach.hidden = false;
   ar.startPlacing();
 };
 photoBtn.onclick = () => setPhotoMode(true);
@@ -165,8 +190,12 @@ if (await isArSupported()) {
 if (params.get('ui') === 'ar') {
   viewerUi.hidden = true;
   overlay.hidden = false;
-  setPlacedUi(true);
-  hint.textContent = '오리를 놓았어요';
+  if (params.has('scan')) {
+    coach.hidden = false;           // ?ui=ar&scan: the "looking for the floor" state
+  } else {
+    setPlacedUi(true);
+    showCaption(params.get('msg') ?? '오리를 놓았어요', (params.get('tone') as Tone) ?? 'done'); // stays visible for design review
+  }
   if (params.has('photo')) setPhotoMode(true);
 }
 
