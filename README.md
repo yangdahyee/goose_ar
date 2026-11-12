@@ -13,6 +13,15 @@ npm run dev        # http://localhost:5173
 폰에서 테스트할 때는 USB로 연결하고 `adb reverse tcp:5173 tcp:5173` 후 폰 Chrome에서 `http://localhost:5173`을 엽니다.
 (WebXR은 HTTPS 또는 localhost에서만 동작합니다.)
 
+## AR 사용 (M2)
+
+안드로이드 Chrome에서 페이지를 열고 **AR 시작**을 누르면 카메라가 켜진다.
+바닥을 천천히 비추면 흰 링이 뜨고, 탭하면 그 자리에 오리가 서서 나를 바라본다. **다시 놓기**로 위치를 바꾸고, **종료**로 일반 뷰어로 돌아간다.
+
+- 필요 조건: ARCore 지원 폰 + Chrome (Google Play Services for AR 설치)
+- 오리 크기는 `src/config.ts`의 `DUCK_HEIGHT_M`(기본 0.3m)
+- AR 미지원 기기에서는 버튼이 비활성화되고 일반 3D 뷰어만 동작
+
 ## 배포
 
 `main`에 푸시하면 GitHub Pages로 배포됩니다. 처음 한 번 저장소 Settings → Pages → Source를 **GitHub Actions**로 바꿔야 합니다.

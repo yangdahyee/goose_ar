@@ -6,18 +6,51 @@
     <title>Duck AR</title>
     <style>
       html, body { margin: 0; height: 100%; background: #eef3f6; overflow: hidden; }
+      body { font: 14px/1.4 system-ui, sans-serif; color: #16242d; }
       #app { position: fixed; inset: 0; }
-      #clips { position: fixed; left: 16px; right: 16px; top: 16px; display: flex; gap: 8px; flex-wrap: wrap; }
-      #clips button { font: 700 14px system-ui, sans-serif; padding: 10px 16px; border: 0; border-radius: 10px;
+      button { font: 700 15px system-ui, sans-serif; padding: 12px 18px; border: 0; border-radius: 12px;
         background: #e8731a; color: #fff; }
-      #status { position: fixed; left: 16px; bottom: 16px; padding: 8px 12px; border-radius: 10px;
-        font: 14px/1.4 system-ui, sans-serif; color: #16242d; background: rgba(255,255,255,.85); }
+      button.alt { background: rgba(255,255,255,.92); color: #16242d; }
+      button:disabled { opacity: .5; }
+      .chip { padding: 8px 12px; border-radius: 10px; background: rgba(255,255,255,.88); }
+
+      /* normal 3D viewer */
+      #viewer { position: fixed; inset: 0; pointer-events: none; padding: 16px; box-sizing: border-box;
+        padding-top: max(16px, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom));
+        display: flex; flex-direction: column; justify-content: space-between; }
+      #viewer > * { pointer-events: auto; }
+      #clips { display: flex; gap: 8px; flex-wrap: wrap; }
+      #viewer .bottom { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+      /* AR overlay (WebXR dom-overlay root) */
+      #overlay { position: fixed; inset: 0; pointer-events: none; box-sizing: border-box; padding: 16px;
+        padding-top: max(16px, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom));
+        display: flex; flex-direction: column; justify-content: space-between; }
+      #overlay[hidden] { display: none; }
+      #overlay > * { pointer-events: auto; }
+      #hint { align-self: center; text-align: center; }
+      #overlay .bar { display: flex; gap: 10px; justify-content: center; }
     </style>
   </head>
   <body>
     <div id="app"></div>
-    <div id="clips"></div>
-    <div id="status">불러오는 중…</div>
+
+    <div id="viewer">
+      <div id="clips"></div>
+      <div class="bottom">
+        <button id="start-ar" disabled>AR 시작</button>
+        <span id="status" class="chip">불러오는 중…</span>
+      </div>
+    </div>
+
+    <div id="overlay" hidden>
+      <div id="hint" class="chip">바닥을 천천히 비춰 보세요</div>
+      <div class="bar">
+        <button id="replace" class="alt" hidden>다시 놓기</button>
+        <button id="exit" class="alt">종료</button>
+      </div>
+    </div>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
