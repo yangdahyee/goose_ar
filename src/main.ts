@@ -199,6 +199,24 @@ if (params.get('ui') === 'ar') {
   if (params.has('photo')) setPhotoMode(true);
 }
 
+// ---- stale-cache guard: GitHub Pages lets browsers keep index.html for ~10 minutes, so a phone can show an old build
+const buildEl = $('build');
+if (__BUILD_ID__ !== 'dev') buildEl.textContent = `v${__BUILD_ID__}`;
+async function checkForUpdate() {
+  if (__BUILD_ID__ === 'dev') return;
+  try {
+    const res = await fetch(`${import.meta.env.BASE_URL}version.json`, { cache: 'no-store' });
+    const { id } = (await res.json()) as { id: string };
+    if (id === __BUILD_ID__) return;
+    const key = `reloaded-for-${id}`;
+    let alreadyTried = false;
+    try { alreadyTried = sessionStorage.getItem(key) === '1'; sessionStorage.setItem(key, '1'); } catch { /* storage blocked */ }
+    if (!alreadyTried) location.replace(`${location.pathname}?v=${id}`); // a new URL skips the cached copy
+    else buildEl.textContent = `v${__BUILD_ID__} · 새 버전이 있어요. 새로고침해 주세요`;
+  } catch { /* offline: keep what we have */ }
+}
+void checkForUpdate();
+
 // ---- loop
 function resize() {
   renderer.setSize(innerWidth, innerHeight);

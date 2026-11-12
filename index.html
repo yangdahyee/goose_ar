@@ -41,6 +41,8 @@
       #viewer > * { pointer-events: auto; }
       #clips { display: flex; gap: 8px; flex-wrap: wrap; }
       #clips button { padding: 10px 16px; border-radius: 99px; font-weight: 800; }
+      #build { position: absolute; top: max(14px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right));
+        font: 700 11px var(--font-ui); color: rgba(43, 33, 24, .45); pointer-events: none; }
       #viewer .bottom { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
       #start-ar { padding: 14px 24px; border-radius: 99px; color: #fff; font: 400 20px var(--font-cute);
         background: var(--hat-glass); border: 1px solid rgba(255, 255, 255, .5);
@@ -114,6 +116,7 @@
     <div id="app"></div>
 
     <div id="viewer">
+      <div id="build"></div>
       <div id="clips"></div>
       <div class="bottom">
         <button id="start-ar" disabled>AR 시작</button>
