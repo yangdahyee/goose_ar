@@ -5,9 +5,10 @@ import { DuckBehavior, type DuckState } from './duck/behavior';
 import { loadDuck, type Duck } from './duck/duck';
 import { applyGlassLook, LIGHTING, LOOKS, MODEL_FILE, type Look } from './duck/looks';
 import { ShadowRig } from './duck/shadow';
+import { Diag } from './ui/diag';
 import { LookPicker } from './ui/picker';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { ArController, isArSupported } from './xr/ar';
+import { ArController, DOM_OVERLAY_UNSUPPORTED, isArSupported } from './xr/ar';
 import { TargetMarker } from './xr/marker';
 import { rayPlaneHit, yawToward } from './xr/placement';
 
@@ -116,8 +117,12 @@ const SCAN_STAGES: { after: number; text: string; fallback: boolean }[] = [
 ];
 let scanSince = 0;
 let scanStage = -1;
-function showCoach(on: boolean) {
-  if (on && coach.hidden) { scanSince = performance.now(); scanStage = -1; }   // count from when the search (re)started
+/**
+ * `restart` is only for a genuinely new search (AR start, "다시 놓기"). A floor that flickers in and out must not
+ * restart the clock, or the 16 s "그냥 놓기" button would never appear.
+ */
+function showCoach(on: boolean, restart = false) {
+  if (on && restart) { scanSince = performance.now(); scanStage = -1; }
   coach.hidden = !on;
 }
 function updateScanGuide(now: number) {
@@ -219,6 +224,20 @@ if ((firstVisit && params.get('ui') !== 'ar') || params.has('pick')) {
   void openPicker();
 }
 const player = new THREE.Vector3();
+
+// ---- ?diag: on-screen diagnostics for phones we cannot debug
+const diag = params.has('diag') ? new Diag() : undefined;
+if (diag) {
+  const gl = renderer.getContext();
+  const info = gl.getExtension('WEBGL_debug_renderer_info');
+  diag.set('build', typeof __BUILD_ID__ === 'string' ? __BUILD_ID__ : '?');
+  diag.set('ua', navigator.userAgent.replace(/^Mozilla\/5.0 /, ''));
+  diag.set('screen', `${innerWidth}x${innerHeight} @${devicePixelRatio}`);
+  diag.set('gpu', info ? String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL)) : 'n/a');
+  diag.set('float rt', `${renderer.extensions.has('EXT_color_buffer_float')} (half: ${renderer.extensions.has('EXT_color_buffer_half_float')})`);
+  diag.set('duck', currentLook);
+  void isArSupported().then((ok) => diag.set('webxr AR', ok));
+}
 if (params.has('debug')) {
   (window as unknown as Record<string, unknown>).__duck = {
     get duck() { return duck; }, get behavior() { return behavior; }, get picker() { return picker; },
@@ -236,9 +255,11 @@ const ar = new ArController(renderer, overlay, {
     setPhotoMode(false);
     marker.hide();
     hideCaption();
-    showCoach(true);              // until the first surface is found
+    showCoach(true, true);        // until the first surface is found
+    if (diag) { ar.collectStats = true; diag.mount(overlay); diag.log('AR session started'); }
   },
   onEnd() {
+    if (diag) { diag.mount(document.body); diag.log('AR session ended'); }
     hideCaption();
     showCoach(false);
     marker.hide();                // the destination ring belongs to the AR session's coordinates
@@ -282,7 +303,7 @@ replaceBtn.onclick = () => {
   duck.root.visible = false;
   setPlacedUi(false);
   hideCaption();
-  showCoach(true);
+  showCoach(true, true);
   ar.startPlacing();
 };
 photoBtn.onclick = () => setPhotoMode(true);
@@ -293,7 +314,14 @@ startBtn.onclick = async () => {
   startBtn.disabled = true;
   saveViewerCamera();
   try { await ar.start(); }
-  catch (e) { statusEl.textContent = `AR을 시작하지 못했어요: ${(e as Error).message}`; }
+  catch (e) {
+    const err = e as Error;
+    statusEl.textContent =
+      err.message === DOM_OVERLAY_UNSUPPORTED ? '이 브라우저는 AR 화면에 버튼을 띄우지 못해요. 안드로이드 Chrome으로 열어 주세요.'
+      : err.name === 'NotSupportedError' ? '이 폰은 AR을 지원하지 않아요. (ARCore를 지원하는 폰과 최신 Chrome이 필요해요)'
+      : `AR을 시작하지 못했어요: ${err.message}`;
+    diag?.log(`start failed: ${err.name}: ${err.message}`);
+  }
   startBtn.disabled = false;
 };
 if (await isArSupported()) {
@@ -308,7 +336,7 @@ if (params.get('ui') === 'ar') {
   viewerUi.hidden = true;
   overlay.hidden = false;
   if (params.has('scan')) {
-    showCoach(true);                // ?ui=ar&scan: the "looking for the floor" state
+    showCoach(true, true);          // ?ui=ar&scan: the "looking for the floor" state
   } else {
     setPlacedUi(true);
     showCaption(params.get('msg') ?? '오리를 놓았어요', (params.get('tone') as Tone) ?? 'done'); // stays visible for design review
@@ -344,6 +372,7 @@ addEventListener('resize', resize);
 resize();
 
 const clock = new THREE.Clock();
+let fpsFrames = 0, fpsSince = performance.now(), fps = 0;
 renderer.setAnimationLoop((_time, frame) => {
   const dt = clock.getDelta();
   if (picker?.active) { picker.render(dt, clock.elapsedTime); return; }   // first-visit screen: only the previews
@@ -351,6 +380,21 @@ renderer.setAnimationLoop((_time, frame) => {
   shadow.follow(duck.root);
   ar.update(frame);
   updateScanGuide(performance.now());
+  if (diag) {
+    fpsFrames++;
+    const now = performance.now();
+    if (now - fpsSince >= 1000) { fps = Math.round((fpsFrames * 1000) / (now - fpsSince)); fpsFrames = 0; fpsSince = now; }
+    diag.set('fps', fps);
+    if (renderer.xr.isPresenting) {
+      const s = ar.stats;
+      diag.set('AR granted', s.features);
+      diag.set('page UI (dom-overlay)', s.domOverlay);
+      diag.set('tracking', `${s.poseOk ? 'ok' : 'NO POSE'}${s.emulated ? ' (position guessed)' : ''}  xr frames ${s.frames}`);
+      diag.set('floor hits', `raw ${s.hitRaw}, facing up ${s.hitUp}, best up ${s.bestUp > -2 ? s.bestUp.toFixed(2) : '-'}`);
+      diag.set('search', `${coach.hidden ? 'FOUND' : `${Math.round((performance.now() - scanSince) / 1000)}s, tip ${scanStage + 1}`}`);
+    }
+    diag.tick(now);
+  }
   marker.update(clock.elapsedTime);
   if (renderer.xr.isPresenting && duck.root.visible) behavior.update(dt, ar.cameraPosition(player));
   if (!renderer.xr.isPresenting) controls.update();

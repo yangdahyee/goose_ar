@@ -51,6 +51,11 @@
       #change-look { padding: 12px 18px; border-radius: 99px; font: 800 14px var(--font-ui); }
       #start-ar:disabled { opacity: .5; box-shadow: none; }
 
+      /* ?diag: on-screen diagnostics (see src/ui/diag.ts) */
+      #diag { position: fixed; top: max(4px, env(safe-area-inset-top)); left: 4px; right: 4px; z-index: 60; margin: 0; padding: 6px 8px;
+        font: 10px/1.35 ui-monospace, Menlo, monospace; color: #b6ffb6; background: rgba(0, 0, 0, .64); border-radius: 8px;
+        white-space: pre-wrap; word-break: break-all; pointer-events: none; }
+
       /* ---- first-visit look picker: the stages are transparent windows onto the 3D canvas behind them ---- */
       #picker { position: fixed; inset: 0; z-index: 20; box-sizing: border-box; display: flex; flex-direction: column; align-items: center;
         justify-content: center; gap: 18px; padding: 24px 16px; padding-top: max(24px, env(safe-area-inset-top));

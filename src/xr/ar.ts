@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { estimateFloorPoint, facesUp } from './placement';
 
+export const DOM_OVERLAY_UNSUPPORTED = 'DOM_OVERLAY_UNSUPPORTED';
+
 export async function isArSupported(): Promise<boolean> {
   if (!navigator.xr) return false;
   try {
@@ -21,6 +23,18 @@ export interface ArHandlers {
   onSurface(found: boolean): void;
 }
 
+/** Numbers for the ?diag panel. Only collected when `collectStats` is on. */
+export interface ArStats {
+  frames: number;       // XR frames since the session started
+  hitRaw: number;       // hit results in the last frame
+  hitUp: number;        // of those, how many face up
+  bestUp: number;       // the largest "up" value among them (1 = a floor, 0 = a wall, -1 = a ceiling)
+  poseOk: boolean;      // the viewer pose exists, i.e. tracking works
+  emulated: boolean;    // tracking is degraded: the position is guessed
+  features: string;     // what the session actually granted
+  domOverlay: string;   // 'screen' / 'floating' / 'head-locked', or NONE if the page UI is not shown
+}
+
 /** WebXR AR session with a hit-test reticle. Owns the session, not the duck. */
 export class ArController {
   readonly reticle: THREE.Mesh;
@@ -28,6 +42,8 @@ export class ArController {
   private hitSource?: XRHitTestSource;
   private hasSurface = false;
   private placing = true;
+  collectStats = false;
+  readonly stats: ArStats = { frames: 0, hitRaw: 0, hitUp: 0, bestUp: -2, poseOk: false, emulated: false, features: '-', domOverlay: '-' };
 
   constructor(
     private renderer: THREE.WebGLRenderer,
@@ -60,11 +76,22 @@ export class ArController {
         optionalFeatures: ['dom-overlay'],
         domOverlay: { root: this.overlay },
       });
+      // `domOverlayState` is null when the browser did not grant dom-overlay: then none of our buttons, tips or
+      // captions would be visible, and the player could not do anything. (Undefined means "not implemented", e.g. emulators.)
+      if ((session as XRSession & { domOverlayState?: unknown }).domOverlayState === null) {
+        await session.end().catch(() => undefined);
+        throw new Error(DOM_OVERLAY_UNSUPPORTED);
+      }
       this.renderer.xr.setReferenceSpaceType('local');
       await this.renderer.xr.setSession(session);
       this.session = session;
       this.placing = true;
       this.hasSurface = false;
+      const granted = session as XRSession & { enabledFeatures?: string[]; domOverlayState?: { type: string } };
+      Object.assign(this.stats, {
+        frames: 0, hitRaw: 0, hitUp: 0, bestUp: -2, poseOk: false, emulated: false,
+        features: granted.enabledFeatures?.join(',') ?? 'n/a', domOverlay: granted.domOverlayState?.type ?? 'NONE',
+      });
 
       const viewer = await session.requestReferenceSpace('viewer');
       this.hitSource = await this.startHitTest(session, viewer);
@@ -114,6 +141,13 @@ export class ArController {
 
   /** Call once per rendered frame. */
   update(frame?: XRFrame) {
+    if (this.collectStats && frame) {
+      const sp = this.renderer.xr.getReferenceSpace();
+      const vp = sp ? frame.getViewerPose(sp) : null;
+      this.stats.frames++;
+      this.stats.poseOk = !!vp;
+      this.stats.emulated = !!vp?.emulatedPosition;
+    }
     if (!frame || !this.hitSource || !this.placing) {
       this.reticle.visible = false;
       return;
@@ -122,10 +156,15 @@ export class ArController {
     // The nearest hit that faces up. Walls and ceilings are skipped, so they never look like "found the floor".
     let pose: XRPose | undefined;
     if (space) {
-      for (const hit of frame.getHitTestResults(this.hitSource)) {
+      const results = frame.getHitTestResults(this.hitSource);
+      let up = 0, best = -2;
+      for (const hit of results) {
         const p = hit.getPose(space);
-        if (p && facesUp(p.transform.matrix)) { pose = p; break; }
+        if (!p) continue;
+        best = Math.max(best, p.transform.matrix[5]);
+        if (facesUp(p.transform.matrix)) { up++; pose ??= p; }
       }
+      if (this.collectStats) Object.assign(this.stats, { hitRaw: results.length, hitUp: up, bestUp: best });
     }
     if (pose) {
       this.reticle.matrix.fromArray(pose.transform.matrix);

@@ -24,14 +24,20 @@ export function facesUp(matrix: ArrayLike<number>, minUp = 0.8): boolean {
 }
 
 /**
- * Last-resort floor when none was found: a spot `distance` metres ahead (horizontally) and `cameraHeight`
- * metres below the phone. People hold a phone about 1.1-1.4 m high when looking at the floor.
+ * Last-resort floor when none was found. The floor is assumed `cameraHeight` metres below the phone (people hold a
+ * phone about 1.1-1.4 m high when looking at the floor), and the duck goes where the centre of the screen meets it,
+ * so it shows up where the player is pointing. Looking level or upward (no meeting point within reach) puts it 1.1 m
+ * ahead; the distance is kept between 0.7 m and 3 m.
  */
 export function estimateFloorPoint(
-  camera: THREE.Vector3, forward: THREE.Vector3, distance = 1.1, cameraHeight = 1.25,
+  camera: THREE.Vector3, forward: THREE.Vector3, cameraHeight = 1.25,
 ): THREE.Vector3 {
-  const f = new THREE.Vector3(forward.x, 0, forward.z);
-  if (f.lengthSq() < 1e-4) f.set(0, 0, -1);        // looking straight down or up: any direction will do
-  else f.normalize();
-  return new THREE.Vector3(camera.x + f.x * distance, camera.y - cameraHeight, camera.z + f.z * distance);
+  const floorY = camera.y - cameraHeight;
+  const heading = new THREE.Vector3(forward.x, 0, forward.z);
+  if (heading.lengthSq() < 1e-4) heading.set(0, 0, -1);      // looking straight down or up: any direction will do
+  else heading.normalize();
+  let along = 1.1;
+  const hit = rayPlaneHit(camera, forward.clone().normalize(), floorY, 4.5);
+  if (hit) along = THREE.MathUtils.clamp(Math.hypot(hit.x - camera.x, hit.z - camera.z), 0.7, 3);
+  return new THREE.Vector3(camera.x + heading.x * along, floorY, camera.z + heading.z * along);
 }
