@@ -9,6 +9,7 @@ import { Diag } from './ui/diag';
 import { LookPicker } from './ui/picker';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { ArController, DOM_OVERLAY_UNSUPPORTED, isArSupported } from './xr/ar';
+import { browserAdvice } from './xr/browser';
 import { TargetMarker } from './xr/marker';
 import { rayPlaneHit, yawToward } from './xr/placement';
 
@@ -324,11 +325,15 @@ startBtn.onclick = async () => {
   }
   startBtn.disabled = false;
 };
+// Samsung Internet and chat-app web views cannot run this AR page properly; say so instead of failing silently.
+const browserTip = browserAdvice(navigator.userAgent);
+diag?.set('browser tip', browserTip ?? 'none');
 if (await isArSupported()) {
   startBtn.disabled = false;
+  if (browserTip) statusEl.textContent += ` · ${browserTip}`;
 } else {
   startBtn.title = 'WebXR AR 미지원';
-  statusEl.textContent += ' · 이 기기는 AR 미지원 (안드로이드 Chrome + ARCore 필요)';
+  statusEl.textContent += browserTip ? ` · ${browserTip}` : ' · 이 기기는 AR 미지원 (안드로이드 Chrome + ARCore 필요)';
 }
 
 // ---- desktop preview of the AR overlay: ?ui=ar shows the placed-state controls over the plain viewer
