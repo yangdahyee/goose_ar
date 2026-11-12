@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 
-/** A pulsing ring on the floor that shows where the duck is heading. */
+/** A pulsing ring on the floor that shows where the duck is heading. Hat-blue, like the "come" button. */
 export class TargetMarker {
   readonly mesh: THREE.Mesh;
-  private material = new THREE.MeshBasicMaterial({ color: 0xf08a2e, transparent: true, depthWrite: false });
+  private material = new THREE.MeshBasicMaterial({ color: 0x86c0f0, transparent: true, depthWrite: false });
 
   constructor() {
     this.mesh = new THREE.Mesh(new THREE.RingGeometry(0.05, 0.075, 40).rotateX(-Math.PI / 2), this.material);

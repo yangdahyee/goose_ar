@@ -108,7 +108,7 @@ const behavior = new DuckBehavior(duck, (s, prev) => {
   if (duck.root.visible) { const [text, tone] = captionFor(s, prev); showCaption(text, tone, CAPTION_MS); }
 });
 const player = new THREE.Vector3();
-if (params.has('debug')) (window as unknown as Record<string, unknown>).__duck = { duck, behavior, camera, scene, marker };
+if (params.has('debug')) (window as unknown as Record<string, unknown>).__duck = { duck, behavior, camera, scene, marker, exit: () => ar.end() };
 const ar = new ArController(renderer, overlay, {
   onStart() {
     viewerUi.hidden = true;
@@ -171,7 +171,6 @@ photoBtn.onclick = () => setPhotoMode(true);
 showUiBtn.onclick = () => setPhotoMode(false);
 comeBtn.onclick = () => behavior.callToMe();
 danceBtn.onclick = () => behavior.dance();
-$('exit').onclick = () => ar.end();
 startBtn.onclick = async () => {
   startBtn.disabled = true;
   saveViewerCamera();

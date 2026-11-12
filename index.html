@@ -53,11 +53,6 @@
       /* ---- AR overlay (WebXR dom-overlay root). Design C: one big call button + thumb rail ---- */
       #overlay { position: fixed; inset: 0; pointer-events: none; font-family: var(--font-ui); }
       #overlay > * { pointer-events: auto; }
-      #overlay .x { position: absolute; top: max(14px, env(safe-area-inset-top)); left: max(14px, env(safe-area-inset-left));
-        width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; }
-      /* exit: just a white X, no button shape. The 44px tap area stays, so it is easy to hit without drawing attention */
-      #overlay .x { background: none; border: 0; color: rgba(255, 255, 255, .62); width: 44px; height: 44px; }
-      #overlay .x svg { width: 20px; height: 20px; stroke-width: 1.8; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .28)); }
       /* caption: no container. Text, a status dot and a faint scrim behind it, so it never competes with the glass buttons */
       #scrim { position: absolute; left: 0; right: 0; top: 0; height: calc(env(safe-area-inset-top, 0px) + 150px); pointer-events: none;
         background: linear-gradient(rgba(0, 0, 0, .32), rgba(0, 0, 0, 0)); opacity: 0; transition: opacity .3s; }
@@ -74,6 +69,7 @@
       #coach { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%); width: min(260px, 70%); box-sizing: border-box;
         padding: 22px 18px; border-radius: 26px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px;
         font: 800 15px/1.45 var(--font-ui); text-shadow: 0 1px 3px rgba(0, 0, 0, .3); pointer-events: none; }
+      #coach small { font: 700 12px var(--font-ui); opacity: .72; }
       #coach svg { width: 44px; height: 44px; color: var(--glass-ink); animation: sweep 1.8s ease-in-out infinite; }
       @keyframes sweep { 0%, 100% { transform: rotate(-14deg) translateX(-8px); } 50% { transform: rotate(14deg) translateX(8px); } }
       /* right rail: three small controls, then the main one at the bottom */
@@ -108,7 +104,6 @@
         <symbol id="i-note" viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></symbol>
         <symbol id="i-cam" viewBox="0 0 24 24"><path d="M3 8.5A2.5 2.5 0 0 1 5.5 6H8l1.4-2h5.2L16 6h2.5A2.5 2.5 0 0 1 21 8.5v9a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z"/><circle cx="12" cy="13" r="3.6"/></symbol>
         <symbol id="i-redo" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14-4L4 9"/><path d="M4 4v5h5"/><path d="M4 13a8 8 0 0 0 14 4l2-2"/><path d="M20 20v-5h-5"/></symbol>
-        <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
         <symbol id="i-phone" viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></symbol>
       </defs>
     </svg>
@@ -126,9 +121,8 @@
 
     <div id="overlay" hidden>
       <div id="scrim"></div>
-      <button id="exit" class="x" aria-label="종료"><svg class="ic"><use href="#i-x" /></svg></button>
       <div id="hint" data-tone="info" role="status" aria-live="polite"></div>
-      <div id="coach" class="glass" hidden><svg class="ic"><use href="#i-phone" /></svg><span>폰을 천천히 움직여서<br />바닥을 찾아 보세요</span></div>
+      <div id="coach" class="glass" hidden><svg class="ic"><use href="#i-phone" /></svg><span>폰을 천천히 움직여서<br />바닥을 찾아 보세요</span><small>나가려면 뒤로 가기</small></div>
       <div class="rail">
         <button id="dance" class="sm glass" aria-label="춤 춰" hidden><svg class="ic"><use href="#i-note" /></svg></button>
         <button id="photo" class="sm glass" aria-label="촬영 모드" hidden><svg class="ic"><use href="#i-cam" /></svg></button>
