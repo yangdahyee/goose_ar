@@ -8,6 +8,9 @@
     <style>
       :root {
         --orange: #f08a2e; --orange-d: #c9661a; --cream: #fff6e6; --ink: #2b2118; --bg: #eef3f6;
+        /* glass: dark-tinted frosted panels stay legible over any camera image */
+        --glass: rgba(28, 22, 16, .34); --glass-border: rgba(255, 255, 255, .38); --glass-hi: rgba(255, 255, 255, .28);
+        --glass-blur: blur(16px) saturate(1.5);
         --font-ui: 'Nunito', system-ui, sans-serif; --font-cute: 'Jua', 'Nunito', system-ui, sans-serif;
       }
       [hidden] { display: none !important; } /* id rules below set display and would override it */
@@ -17,7 +20,11 @@
       button { font-family: var(--font-ui); cursor: pointer; border: 0; -webkit-tap-highlight-color: transparent; }
       button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
       svg.ic { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-      .chip { padding: 8px 14px; border-radius: 99px; background: rgba(255, 246, 230, .92); font-weight: 800; }
+      .glass { background: var(--glass); border: 1px solid var(--glass-border); color: #fff;
+        -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+        box-shadow: inset 0 1px 0 var(--glass-hi), 0 6px 20px rgba(0, 0, 0, .22); }
+      @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .glass { background: rgba(28, 22, 16, .62); } }
+      .chip { padding: 8px 14px; border-radius: 99px; font-weight: 800; }
 
       /* ---- normal 3D viewer ---- */
       #viewer { position: fixed; inset: 0; pointer-events: none; box-sizing: border-box; padding: 16px;
@@ -25,39 +32,43 @@
         display: flex; flex-direction: column; justify-content: space-between; }
       #viewer > * { pointer-events: auto; }
       #clips { display: flex; gap: 8px; flex-wrap: wrap; }
-      #clips button { padding: 10px 16px; border-radius: 99px; background: var(--cream); color: var(--ink); font-weight: 800; }
+      #clips button { padding: 10px 16px; border-radius: 99px; font-weight: 800; }
       #viewer .bottom { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-      #start-ar { padding: 14px 22px; border-radius: 99px; background: linear-gradient(180deg, #ffa24d, var(--orange-d)); color: #fff;
-        font: 400 20px var(--font-cute); box-shadow: 0 6px 16px rgba(201, 102, 26, .45); }
+      #start-ar { padding: 14px 22px; border-radius: 99px; color: #fff; font: 400 20px var(--font-cute);
+        background: linear-gradient(180deg, rgba(255, 170, 90, .85), rgba(214, 104, 24, .82)); border: 1px solid rgba(255, 255, 255, .5);
+        -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, .55), 0 6px 18px rgba(201, 102, 26, .45); }
       #start-ar:disabled { opacity: .5; box-shadow: none; }
 
       /* ---- AR overlay (WebXR dom-overlay root). Design C: one big call button + thumb rail ---- */
       #overlay { position: fixed; inset: 0; pointer-events: none; font-family: var(--font-ui); }
       #overlay > * { pointer-events: auto; }
       #overlay .x { position: absolute; top: max(14px, env(safe-area-inset-top)); left: max(14px, env(safe-area-inset-left));
-        width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; background: rgba(23, 18, 13, .45); color: #fff; }
+        width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; }
       #overlay .x svg { width: 20px; height: 20px; }
       #hint { position: absolute; top: max(18px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
         max-width: calc(100% - 140px); text-align: center; white-space: nowrap; font-size: 15px; pointer-events: none; }
       #overlay .rail { position: absolute; right: max(14px, env(safe-area-inset-right));
         bottom: calc(env(safe-area-inset-bottom, 0px) + 104px); display: flex; flex-direction: column; gap: 12px; }
-      #overlay .rail button { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center;
-        background: rgba(255, 246, 230, .94); color: var(--ink); box-shadow: 0 3px 10px rgba(0, 0, 0, .28); transition: transform .12s; }
+      #overlay .rail button { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; transition: transform .12s; }
+      #overlay .rail svg, #overlay .x svg { filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .35)); }
       #overlay .rail button:active { transform: scale(.9); }
       #overlay .rail svg { width: 26px; height: 26px; }
       #come { position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 24px); transform: translateX(-50%);
         display: flex; align-items: center; gap: 10px; padding: 12px 30px 12px 14px; border-radius: 99px; white-space: nowrap;
-        background: linear-gradient(180deg, #ffa24d, var(--orange-d)); color: #fff; font: 400 24px var(--font-cute);
-        box-shadow: 0 7px 18px rgba(201, 102, 26, .55), inset 0 1px 0 rgba(255, 255, 255, .5); transition: transform .12s; }
-      #come i { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: rgba(255, 255, 255, .25); }
+        background: linear-gradient(180deg, rgba(255, 170, 90, .78), rgba(214, 104, 24, .74)); color: #fff; font: 400 24px var(--font-cute);
+        border: 1px solid rgba(255, 255, 255, .5); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+        text-shadow: 0 1px 3px rgba(0, 0, 0, .35);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, .55), 0 8px 22px rgba(201, 102, 26, .5); transition: transform .12s; }
+      #come i { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: rgba(255, 255, 255, .22);
+        border: 1px solid rgba(255, 255, 255, .45); }
       #come svg { width: 28px; height: 28px; }
       #come:active { transform: translateX(-50%) scale(.95); }
       #come.busy i { animation: pulse 1s ease-in-out infinite; }
       @keyframes pulse { 50% { transform: scale(1.1); } }
       /* photo mode: nothing visible except a faint corner button that brings the UI back */
       #show-ui { display: none; position: absolute; right: max(16px, env(safe-area-inset-right));
-        bottom: max(16px, env(safe-area-inset-bottom)); padding: 10px 14px; border-radius: 99px; opacity: .3; font-size: 13px; font-weight: 800;
-        background: rgba(255, 255, 255, .7); color: var(--ink); }
+        bottom: max(16px, env(safe-area-inset-bottom)); padding: 10px 14px; border-radius: 99px; opacity: .35; font-size: 13px; font-weight: 800; }
       #overlay.photo > :not(#show-ui) { visibility: hidden; }
       #overlay.photo #show-ui { display: block; }
       @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
@@ -80,20 +91,20 @@
       <div id="clips"></div>
       <div class="bottom">
         <button id="start-ar" disabled>AR 시작</button>
-        <span id="status" class="chip">불러오는 중…</span>
+        <span id="status" class="chip glass">불러오는 중…</span>
       </div>
     </div>
 
     <div id="overlay" hidden>
-      <button id="exit" class="x" aria-label="종료"><svg class="ic"><use href="#i-x" /></svg></button>
-      <div id="hint" class="chip">바닥을 천천히 비춰 보세요</div>
+      <button id="exit" class="x glass" aria-label="종료"><svg class="ic"><use href="#i-x" /></svg></button>
+      <div id="hint" class="chip glass">바닥을 천천히 비춰 보세요</div>
       <div class="rail">
-        <button id="dance" aria-label="춤 춰" hidden><svg class="ic"><use href="#i-note" /></svg></button>
-        <button id="photo" aria-label="촬영 모드" hidden><svg class="ic"><use href="#i-cam" /></svg></button>
-        <button id="replace" aria-label="다시 놓기" hidden><svg class="ic"><use href="#i-redo" /></svg></button>
+        <button id="dance" class="glass" aria-label="춤 춰" hidden><svg class="ic"><use href="#i-note" /></svg></button>
+        <button id="photo" class="glass" aria-label="촬영 모드" hidden><svg class="ic"><use href="#i-cam" /></svg></button>
+        <button id="replace" class="glass" aria-label="다시 놓기" hidden><svg class="ic"><use href="#i-redo" /></svg></button>
       </div>
       <button id="come" hidden><i><svg class="ic"><use href="#i-foot" /></svg></i><span id="come-label">이리 와</span></button>
-      <button id="show-ui">UI</button>
+      <button id="show-ui" class="glass">UI</button>
     </div>
 
     <script type="module" src="/src/main.ts"></script>

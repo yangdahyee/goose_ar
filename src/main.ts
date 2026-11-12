@@ -1,11 +1,12 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { DUCK_HEIGHT_M } from './config';
+import { DUCK_HEIGHT_M, MAX_TAP_DISTANCE_M } from './config';
 import { DuckBehavior, type DuckState } from './duck/behavior';
 import { loadDuck } from './duck/duck';
 import { ShadowRig } from './duck/shadow';
 import { ArController, isArSupported } from './xr/ar';
-import { yawToward } from './xr/placement';
+import { TargetMarker } from './xr/marker';
+import { rayPlaneHit, yawToward } from './xr/placement';
 
 // Debug params: ?clip=Walk&t=0.2 freezes a pose, ?cam=side looks from the side.
 const params = new URLSearchParams(location.search);
@@ -62,6 +63,7 @@ scene.add(duck.root);
 // ---- normal viewer: clip buttons
 for (const name of duck.clips) {
   const b = document.createElement('button');
+  b.className = 'glass';
   b.textContent = name;
   b.onclick = () => { duck.play(name); statusEl.textContent = `재생: ${name}`; };
   $('clips').appendChild(b);
@@ -75,17 +77,21 @@ if (t) duck.freezeAt(firstClip, Number(t));
 // ---- AR
 const hintFor = (s: DuckState, prev: DuckState) =>
   s === 'walk' ? '오리가 걸어와요…'
+  : s === 'go' ? '오리가 걸어가요…'
   : s === 'dance' ? '신나게 춤추는 중!'
-  : prev === 'walk' ? '도착했어요'
+  : prev === 'walk' || prev === 'go' ? '도착했어요'
   : prev === 'dance' ? '춤 끝!'
   : '오리를 놓았어요';
+const marker = new TargetMarker();
+scene.add(marker.mesh);
 const behavior = new DuckBehavior(duck, (s, prev) => {
   comeBtn.classList.toggle('busy', s === 'walk');
+  if (s !== 'go') marker.hide();
   comeLabel.textContent = s === 'walk' ? '오는 중…' : '이리 와';
   if (duck.root.visible) hint.textContent = hintFor(s, prev);
 });
 const player = new THREE.Vector3();
-if (params.has('debug')) (window as unknown as Record<string, unknown>).__duck = { duck, behavior, camera, scene };
+if (params.has('debug')) (window as unknown as Record<string, unknown>).__duck = { duck, behavior, camera, scene, marker };
 const ar = new ArController(renderer, overlay, {
   onStart() {
     viewerUi.hidden = true;
@@ -95,6 +101,7 @@ const ar = new ArController(renderer, overlay, {
     duck.setHeight(DUCK_HEIGHT_M);
     setPlacedUi(false);
     setPhotoMode(false);
+    marker.hide();
     hint.textContent = '바닥을 천천히 비춰 보세요';
   },
   onEnd() {
@@ -106,6 +113,13 @@ const ar = new ArController(renderer, overlay, {
     duck.root.scale.setScalar(1);
     duck.root.position.set(0, 0, 0);
     duck.root.rotation.set(0, 0, 0);
+  },
+  onMove(origin, direction) {
+    const point = rayPlaneHit(origin, direction, duck.root.position.y, MAX_TAP_DISTANCE_M);
+    if (params.has('debug')) (window as unknown as Record<string, unknown>).__lastRay = { origin: origin.toArray(), direction: direction.toArray(), floorY: duck.root.position.y, point: point?.toArray() };
+    if (!point) { hint.textContent = '바닥을 탭해 주세요'; return; }
+    marker.show(point);
+    behavior.goTo(point);
   },
   onSurface(found) {
     if (ar.isPlacing) hint.textContent = found ? '탭해서 오리를 놓으세요' : '바닥을 천천히 비춰 보세요';
@@ -169,6 +183,7 @@ renderer.setAnimationLoop((_time, frame) => {
   duck.update(dt);
   shadow.follow(duck.root);
   ar.update(frame);
+  marker.update(clock.elapsedTime);
   if (renderer.xr.isPresenting && duck.root.visible) behavior.update(dt, ar.cameraPosition(player));
   if (!renderer.xr.isPresenting) controls.update();
   renderer.render(scene, camera);

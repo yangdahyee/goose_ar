@@ -1,6 +1,8 @@
 export interface Step { x: number; z: number; yaw: number; arrived: boolean }
 
 const TAU = Math.PI * 2;
+/** Metres. Without it the duck can stop at exactly `stopDist` yet never count as arrived (floating-point error). */
+const ARRIVE_EPS = 1e-3;
 export const wrapPi = (a: number) => ((((a + Math.PI) % TAU) + TAU) % TAU) - Math.PI;
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
@@ -20,7 +22,7 @@ export function stepToward(
 ): Step {
   const dx = tx - x, dz = tz - z;
   const dist = Math.hypot(dx, dz);
-  if (dist <= stopDist) return { x, z, yaw, arrived: true };
+  if (dist <= stopDist + ARRIVE_EPS) return { x, z, yaw, arrived: true };
 
   const desired = Math.atan2(dx, dz);
   const newYaw = turnToward(yaw, desired, turnRate, dt);

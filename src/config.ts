@@ -7,3 +7,7 @@ export const WALK_UNITS_PER_SEC = 2.1;
 export const WALK_SPEED_MULT = 1.8;   // plays Walk faster; ground speed scales with it so feet still match
 export const STOP_DISTANCE_M = 0.5;   // stops this far from the player
 export const TURN_RATE = 5;           // rad/s when turning toward the player
+
+// Tap to move
+export const GO_STOP_DISTANCE_M = 0.03; // how close to the tapped spot the duck stops
+export const MAX_TAP_DISTANCE_M = 6;    // ignore taps whose floor hit is farther than this from the camera

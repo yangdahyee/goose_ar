@@ -14,6 +14,8 @@ export interface ArHandlers {
   onEnd(): void;
   /** The user tapped while the reticle was on a surface. */
   onPlace(position: THREE.Vector3, camera: THREE.Vector3): void;
+  /** The duck is already placed and the user tapped the screen: a ray from the camera through the touch point. */
+  onMove(origin: THREE.Vector3, direction: THREE.Vector3): void;
   /** The reticle found (or lost) a surface. */
   onSurface(found: boolean): void;
 }
@@ -35,8 +37,10 @@ export class ArController {
     this.reticle = new THREE.Mesh(ring, new THREE.MeshBasicMaterial({ color: 0xffffff }));
     this.reticle.matrixAutoUpdate = false;
     this.reticle.visible = false;
-    // Taps on overlay buttons must not count as "place the duck".
-    overlay.addEventListener('beforexrselect', (e) => e.preventDefault());
+    // Taps on overlay buttons must not count as a placement or a move. Taps on empty overlay area still do.
+    overlay.addEventListener('beforexrselect', (e) => {
+      if ((e.target as HTMLElement | null)?.closest('button')) e.preventDefault();
+    });
   }
 
   get isPlacing() { return this.placing; }
@@ -97,14 +101,26 @@ export class ArController {
     }
   }
 
-  private onSelect = () => {
-    if (!this.placing || !this.reticle.visible) return;
+  private onSelect = (e: XRInputSourceEvent) => {
+    if (!this.placing) { this.moveRequest(e); return; }
+    if (!this.reticle.visible) return;
     const position = new THREE.Vector3().setFromMatrixPosition(this.reticle.matrix);
     const camera = this.cameraPosition();
     this.placing = false;
     this.reticle.visible = false;
     this.handlers.onPlace(position, camera);
   };
+
+  /** Turn a tap into a world-space ray (origin, direction) and hand it to the app. */
+  private moveRequest(e: XRInputSourceEvent) {
+    const space = this.renderer.xr.getReferenceSpace();
+    const pose = space ? e.frame.getPose(e.inputSource.targetRaySpace, space) : undefined;
+    if (!pose) return;
+    const m = new THREE.Matrix4().fromArray(pose.transform.matrix);
+    const origin = new THREE.Vector3().setFromMatrixPosition(m);
+    const direction = new THREE.Vector3(0, 0, -1).transformDirection(m);
+    this.handlers.onMove(origin, direction);
+  }
 
   private onSessionEnd = () => {
     this.hitSource?.cancel();
