@@ -29,7 +29,10 @@ const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.xr.enabled = true;
-renderer.shadowMap.enabled = true;
+// Switches to bisect "the duck does not show on my phone": ?noshadow, ?noenv, ?look=plain; ?safe is all three.
+const safe = params.has('safe');
+const noShadow = safe || params.has('noshadow');
+renderer.shadowMap.enabled = !noShadow;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 $('app').appendChild(renderer.domElement);
 
@@ -40,7 +43,7 @@ const diag = params.has('diag') ? new Diag() : undefined;
 // cannot render into float textures (or with ?noenv): the duck then has less shine, but it still shows.
 const hasFloatTargets = renderer.extensions.has('EXT_color_buffer_float') || renderer.extensions.has('EXT_color_buffer_half_float');
 let envMap: THREE.Texture | null = null;
-if (!params.has('noenv') && hasFloatTargets) {
+if (!safe && !params.has('noenv') && hasFloatTargets) {
   try { envMap = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture; }
   catch (e) { diag?.log(`environment failed: ${e}`); }
 }
@@ -69,6 +72,7 @@ function restoreViewerCamera() {
 const hemi = new THREE.HemisphereLight(0xffffff, 0x9fb0bb, 0.5); // intensities are set per duck (LIGHTING)
 scene.add(hemi);
 const shadow = new ShadowRig(); // sun + floor that only shows the duck's shadow
+if (noShadow) shadow.light.castShadow = false;
 scene.add(shadow.group);
 
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -84,7 +88,7 @@ function readStoredLook(): Look | null {
 function storeLook(look: Look) {
   try { localStorage.setItem(LOOK_KEY, look); } catch { /* private mode: it just asks again next time */ }
 }
-const forcedLook = isLook(params.get('look')) ? (params.get('look') as Look) : null; // ?look=plain skips the picker
+const forcedLook = isLook(params.get('look')) ? (params.get('look') as Look) : safe ? 'plain' : null; // ?look=plain skips the picker
 const storedLook = readStoredLook();
 let currentLook: Look = forcedLook ?? storedLook ?? DEFAULT_LOOK;
 const firstVisit = !forcedLook && !storedLook;
@@ -262,6 +266,12 @@ const t = params.get('t');
 if (t) duck.freezeAt(firstClip, Number(t));
 const player = new THREE.Vector3();
 
+// ?cube: two magenta cubes drawn with the simplest possible material. One stays 0.6 m in front of the camera,
+// one floats above the duck. If the cubes show in AR but the duck does not, the problem is the duck's rendering.
+const cubes = params.has('cube') ? [0, 1].map(() => new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.08), new THREE.MeshBasicMaterial({ color: 0xff00ff }))) : [];
+for (const c of cubes) { c.visible = false; scene.add(c); }
+const cubeForward = new THREE.Vector3();
+
 if (diag) {
   const gl = renderer.getContext();
   const info = gl.getExtension('WEBGL_debug_renderer_info');
@@ -270,14 +280,14 @@ if (diag) {
   diag.set('screen', `${innerWidth}x${innerHeight} @${devicePixelRatio}`);
   diag.set('gpu', info ? String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL)) : 'n/a');
   diag.set('float rt', `${renderer.extensions.has('EXT_color_buffer_float')} (half: ${renderer.extensions.has('EXT_color_buffer_half_float')})`);
-  diag.set('duck', currentLook);
+  diag.set('look', currentLook);
   diag.set('environment', envMap ? 'on' : hasFloatTargets ? 'off (?noenv or failed)' : 'off (no float targets)');
   void isArSupported().then((ok) => diag.set('webxr AR', ok));
 }
 if (params.has('debug')) {
   (window as unknown as Record<string, unknown>).__duck = {
     get duck() { return duck; }, get behavior() { return behavior; }, get picker() { return picker; },
-    camera, scene, marker, renderer, look: () => currentLook, exit: () => ar.end(),
+    camera, scene, marker, renderer, look: () => currentLook, exit: () => ar.end(), placeEstimated: () => ar.placeEstimated(),
   };
 }
 const ar = new ArController(renderer, overlay, {
@@ -323,6 +333,7 @@ const ar = new ArController(renderer, overlay, {
     else hideCaption();
   },
   onPlace(position, cam, estimated) {
+    diag?.log(`onPlace${estimated ? ' (estimated)' : ''} at ${position.toArray().map((v) => v.toFixed(2)).join(',')}`);
     duck.root.position.copy(position);
     duck.root.rotation.y = yawToward(position, cam); // face the player
     duck.root.visible = true;
@@ -334,7 +345,7 @@ const ar = new ArController(renderer, overlay, {
 });
 scene.add(ar.reticle);
 
-placeAnywayBtn.onclick = () => ar.placeEstimated();
+placeAnywayBtn.onclick = () => { diag?.log('tapped 그냥 놓기'); ar.placeEstimated(); };
 replaceBtn.onclick = () => {
   duck.root.visible = false;
   setPlacedUi(false);
@@ -418,8 +429,16 @@ renderer.setAnimationLoop((_time, frame) => {
   if (picker?.active) { picker.render(dt, clock.elapsedTime); return; }   // first-visit screen: only the previews
   duck.update(dt);
   shadow.follow(duck.root);
+  if (noShadow) shadow.group.visible = false;   // no shadow floor either
   ar.update(frame);
   updateScanGuide(performance.now());
+  if (cubes.length && renderer.xr.isPresenting) {
+    cubeForward.set(0, 0, -1).applyQuaternion(camera.quaternion);
+    cubes[0].position.copy(camera.position).addScaledVector(cubeForward, 0.6).y -= 0.12;
+    cubes[0].visible = true;
+    cubes[1].position.copy(duck.root.position).y += 0.5;
+    cubes[1].visible = duck.root.visible;
+  } else for (const c of cubes) c.visible = false;
   if (diag) {
     fpsFrames++;
     const now = performance.now();
@@ -432,6 +451,14 @@ renderer.setAnimationLoop((_time, frame) => {
       diag.set('page UI (dom-overlay)', s.domOverlay);
       diag.set('tracking', `${s.poseOk ? 'ok' : 'NO POSE'}${s.emulated ? ' (position guessed)' : ''}  xr frames ${s.frames}`);
       diag.set('floor hits', `raw ${s.hitRaw}, facing up ${s.hitUp}, best up ${s.bestUp > -2 ? s.bestUp.toFixed(2) : '-'}`);
+      const view = renderer.xr.getCamera().cameras[0];
+      if (view) {
+        const vp = new THREE.Matrix4().multiplyMatrices(view.projectionMatrix, new THREE.Matrix4().copy(view.matrixWorld).invert());
+        const center = duck.root.position.clone().setY(duck.root.position.y + 0.15);
+        const inView = new THREE.Frustum().setFromProjectionMatrix(vp).containsPoint(center);
+        diag.set('duck', `${duck.root.visible ? 'shown' : 'HIDDEN'} (${currentLook}) at ${duck.root.position.toArray().map((v) => v.toFixed(2)).join(',')}, ${center.distanceTo(view.position).toFixed(2)} m, ${inView ? 'IN VIEW' : 'out of view'}`);
+      }
+      diag.set('drawn', `calls ${renderer.info.render.calls}, triangles ${renderer.info.render.triangles}, shadows ${noShadow ? 'off' : 'on'}`);
       diag.set('search', `${coach.hidden ? 'FOUND' : `${Math.round((performance.now() - scanSince) / 1000)}s, tip ${scanStage + 1}`}`);
     }
     diag.tick(now);
