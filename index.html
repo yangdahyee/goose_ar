@@ -19,6 +19,12 @@
       }
       [hidden] { display: none !important; } /* id rules below set display and would override it */
       html, body { margin: 0; height: 100%; background: var(--bg); overflow: hidden; }
+      /* the viewer's 3D canvas is transparent: this soft gradient (hat blue, beak peach, cash mint) is what the glass blurs */
+      body { background:
+        radial-gradient(62% 42% at 12% 10%, rgba(176, 214, 248, .95) 0%, rgba(176, 214, 248, 0) 70%),
+        radial-gradient(58% 38% at 92% 32%, rgba(255, 226, 196, .9) 0%, rgba(255, 226, 196, 0) 70%),
+        radial-gradient(75% 46% at 40% 100%, rgba(196, 236, 216, .95) 0%, rgba(196, 236, 216, 0) 72%),
+        var(--bg); }
       body { font: 14px/1.4 var(--font-ui); color: var(--ink); }
       #app { position: fixed; inset: 0; }
       button { font-family: var(--font-ui); cursor: pointer; border: 0; -webkit-tap-highlight-color: transparent; }
@@ -31,7 +37,10 @@
         .glass { background: rgba(84, 80, 74, .66); } #come, #start-ar { background: rgba(86, 140, 190, .82); }
       }
       /* the plain 3D viewer sits on a light background, so its glass is a little darker for contrast */
-      #viewer .glass { background: rgba(72, 68, 62, .55); }
+      #viewer .glass { background: linear-gradient(160deg, rgba(255, 255, 255, .66), rgba(255, 255, 255, .26));
+        border: 1px solid rgba(255, 255, 255, .9); color: var(--ink); text-shadow: none;
+        -webkit-backdrop-filter: blur(18px) saturate(1.5); backdrop-filter: blur(18px) saturate(1.5);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), 0 8px 24px rgba(70, 100, 140, .16); }
       .chip { padding: 8px 14px; border-radius: 99px; font-weight: 800; }
 
       /* ---- normal 3D viewer ---- */
@@ -40,15 +49,23 @@
         display: flex; flex-direction: column; justify-content: space-between; }
       #viewer > * { pointer-events: auto; }
       #clips { display: flex; gap: 8px; flex-wrap: wrap; }
-      #clips button { padding: 10px 16px; border-radius: 99px; font-weight: 800; }
+      #clips button { padding: 10px 18px; border-radius: 99px; font-weight: 800; transition: transform .12s; }
+      #clips button:active { transform: scale(.95); }
+      /* the clip that is playing */
+      #viewer #clips button.on { background: linear-gradient(160deg, rgba(214, 238, 253, .98), rgba(142, 196, 238, .78));
+        color: #174a7a; border-color: rgba(255, 255, 255, .95); }
       #build { position: absolute; top: max(14px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right));
         font: 700 11px var(--font-ui); color: rgba(43, 33, 24, .45); pointer-events: none; }
-      #viewer .bottom { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-      #start-ar { padding: 14px 24px; border-radius: 99px; color: #fff; font: 400 20px var(--font-cute);
-        background: var(--hat-glass); border: 1px solid rgba(255, 255, 255, .5);
-        -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); text-shadow: 0 1px 4px rgba(24, 60, 96, .45);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, .55), 0 8px 24px rgba(60, 110, 160, .3); }
-      #change-look { padding: 12px 18px; border-radius: 99px; font: 800 14px var(--font-ui); }
+      #viewer .bottom { display: flex; flex-direction: column; gap: 10px; }
+      #viewer .actions { display: flex; gap: 10px; }
+      #viewer .actions > button { flex: 1 1 0; min-width: 0; min-height: 54px; box-sizing: border-box; }
+      #start-ar { padding: 0 20px; border-radius: 99px; color: #fff; font: 400 21px var(--font-cute);
+        background: linear-gradient(160deg, rgba(140, 196, 240, .95), rgba(70, 140, 205, .92)); border: 1px solid rgba(255, 255, 255, .6);
+        -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); text-shadow: 0 1px 4px rgba(24, 70, 120, .45);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, .6), 0 8px 24px rgba(60, 110, 160, .3); }
+      #change-look { padding: 0 14px; border-radius: 99px; font: 800 14px var(--font-ui); white-space: nowrap; }
+      #status { align-self: stretch; padding: 9px 16px; border-radius: 20px; font: 700 13px/1.45 var(--font-ui); text-align: center; text-wrap: balance; word-break: keep-all; }
+      #status:empty { display: none; }
       #start-ar:disabled { opacity: .5; box-shadow: none; }
 
       /* ?diag: on-screen diagnostics (see src/ui/diag.ts) */
@@ -151,9 +168,11 @@
       <div id="build"></div>
       <div id="clips"></div>
       <div class="bottom">
-        <button id="start-ar" disabled>AR 시작</button>
-        <button id="change-look" class="glass" aria-label="질감 바꾸기">질감 바꾸기</button>
-        <span id="status" class="chip glass">불러오는 중…</span>
+        <div class="actions">
+          <button id="start-ar" disabled>AR 시작</button>
+          <button id="change-look" class="glass" aria-label="질감 바꾸기">질감 바꾸기</button>
+        </div>
+        <span id="status" class="chip glass" role="status"></span>
       </div>
     </div>
 

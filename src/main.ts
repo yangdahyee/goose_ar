@@ -47,9 +47,8 @@ if (!safe && !params.has('noenv') && hasFloatTargets) {
   try { envMap = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture; }
   catch (e) { diag?.log(`environment failed: ${e}`); }
 }
-const VIEWER_BG = new THREE.Color(0xeef3f6);
 const scene = new THREE.Scene();
-scene.background = VIEWER_BG;
+scene.background = null;   // transparent: the page's gradient shows behind the duck
 scene.environment = envMap;
 scene.environmentIntensity = 0.55;
 const VIEWER_FOV = 40;
@@ -96,6 +95,20 @@ const ducks: Partial<Record<Look, Duck>> = {};
 const behaviors: Partial<Record<Look, DuckBehavior>> = {};
 let duck!: Duck;             // the duck in the scene right now
 let behavior!: DuckBehavior; // and its behaviour
+
+// The status line only carries tips and errors; which clip plays is shown by the highlighted button.
+const statusParts: string[] = [];
+function addStatus(message: string) {
+  statusParts.push(message);
+  statusEl.textContent = statusParts.join(' · ');
+}
+function markClip(name: string) {
+  document.querySelectorAll<HTMLButtonElement>('#clips button').forEach((b) => {
+    const on = b.dataset.clip === name;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', String(on));
+  });
+}
 
 const LOOK_NAME: Record<Look, string> = { glass: '유리', plain: '일반' };
 const changeLookBtn = $<HTMLButtonElement>('change-look');
@@ -213,10 +226,10 @@ let picker: LookPicker | undefined;
 function openPicker() {
   viewerUi.hidden = true;
   if (!picker) {
-    picker = new LookPicker(renderer, $('picker'), envMap, VIEWER_BG, async (look) => {
+    picker = new LookPicker(renderer, $('picker'), envMap, async (look) => {
       storeLook(look);
       try { await activate(look); } catch (e) { diag?.log(`activate ${look}: ${e}`); return; }
-      statusEl.textContent = '재생: Idle';
+      markClip('Idle');
       picker!.close();
       viewerUi.hidden = false;
     });
@@ -241,7 +254,7 @@ try {
   const other: Look = currentLook === 'glass' ? 'plain' : 'glass';
   try {
     await activate(other);
-    loadTip = ' · 고른 오리를 불러오지 못해서 다른 오리로 열었어요.';
+    loadTip = '고른 오리를 불러오지 못해서 다른 오리로 열었어요.';
   } catch (e2) {
     diag?.log(`load ${other}: ${e2}`);
     picker?.close();
@@ -252,16 +265,20 @@ try {
 }
 
 // ---- normal viewer: clip buttons
-for (const name of duck.clips) {
+const CLIP_ORDER = ['Idle', 'Walk', 'Dance'];   // the same order for both ducks
+const clipNames = [...duck.clips].sort((a, b) => (CLIP_ORDER.indexOf(a) + 99) % 99 - (CLIP_ORDER.indexOf(b) + 99) % 99);
+for (const name of clipNames) {
   const b = document.createElement('button');
   b.className = 'glass';
   b.textContent = name;
-  b.onclick = () => { duck.play(name); statusEl.textContent = `재생: ${name}`; };
+  b.dataset.clip = name;
+  b.onclick = () => { duck.play(name); markClip(name); };
   $('clips').appendChild(b);
 }
 const firstClip = params.get('clip') ?? (duck.clips.includes('Idle') ? 'Idle' : duck.clips[0]);
 duck.play(firstClip, 0);
-statusEl.textContent = `재생: ${firstClip}${loadTip}`;
+markClip(firstClip);
+if (loadTip) addStatus(loadTip);
 const t = params.get('t');
 if (t) duck.freezeAt(firstClip, Number(t));
 const player = new THREE.Vector3();
@@ -312,7 +329,7 @@ const ar = new ArController(renderer, overlay, {
     behavior.setState('idle');    // do not leave the duck "walking" in the plain viewer
     restoreViewerCamera();
     viewerUi.hidden = false;
-    scene.background = VIEWER_BG;
+    scene.background = null;
     controls.enabled = true;
     duck.root.visible = true;
     duck.root.scale.setScalar(1);
@@ -376,10 +393,10 @@ const browserTip = browserAdvice(navigator.userAgent);
 diag?.set('browser tip', browserTip ?? 'none');
 if (await isArSupported()) {
   startBtn.disabled = false;
-  if (browserTip) statusEl.textContent += ` · ${browserTip}`;
+  if (browserTip) addStatus(browserTip);
 } else {
   startBtn.title = 'WebXR AR 미지원';
-  statusEl.textContent += browserTip ? ` · ${browserTip}` : ' · 이 기기는 AR 미지원 (안드로이드 Chrome + ARCore 필요)';
+  addStatus(browserTip ?? '이 기기는 AR 미지원 (안드로이드 Chrome + ARCore 필요)');
 }
 
 // ---- desktop preview of the AR overlay: ?ui=ar shows the placed-state controls over the plain viewer

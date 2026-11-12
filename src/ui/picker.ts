@@ -22,10 +22,9 @@ export class LookPicker {
     private renderer: THREE.WebGLRenderer,
     private root: HTMLElement,
     env: THREE.Texture | null,
-    background: THREE.Color,
     private onPick: (look: Look) => void,
   ) {
-    this.scene.background = background;
+    this.scene.background = null;     // transparent: the page's gradient shows through each stage
     this.scene.environment = env;
     this.sun.position.set(3, 6, 4);
     this.scene.add(this.hemi, this.sun);
