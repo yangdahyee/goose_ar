@@ -1,5 +1,8 @@
 // Tunables. Model units come from Blender (the duck is ~2.9 units tall with the hat).
-export const DUCK_HEIGHT_M = 0.3; // how tall the duck is in AR, in metres
+// How tall the duck is in AR, in metres. It was a fixed 0.3 (a toy), which felt small from 1.5 m away on the floor;
+// the size button in AR cycles through these, and the choice is remembered.
+export const DUCK_SIZES_M = { S: 0.25, M: 0.45, L: 0.7 } as const;
+export const DEFAULT_SIZE: keyof typeof DUCK_SIZES_M = 'M';
 export const DEFAULT_LOOK: 'glass' | 'plain' = 'glass'; // used when nothing is stored; ?look=plain|glass overrides
 
 // Walking. WALK_UNITS_PER_SEC is the ground speed at which the Walk clip's feet do not slide
