@@ -12,14 +12,17 @@ export class LookPicker {
   private camera = new THREE.PerspectiveCamera(32, 1, 0.1, 60);
   private hemi = new THREE.HemisphereLight(0xffffff, 0x9fb0bb, 0.5);
   private sun = new THREE.DirectionalLight(0xffffff, 1.5);
-  private cards: { look: Look; stage: HTMLElement; duck: Duck }[] = [];
+  private cards: { look: Look; button: HTMLButtonElement; stage: HTMLElement; duck?: Duck }[] = [];
 
+  /**
+   * The screen opens at once with every card in a "loading" state; each card fills in when its duck is ready
+   * (setDuck) or says so when it could not be loaded (fail). Nothing is blank while a model downloads.
+   */
   constructor(
     private renderer: THREE.WebGLRenderer,
     private root: HTMLElement,
-    env: THREE.Texture,
+    env: THREE.Texture | null,
     background: THREE.Color,
-    makeDuck: (look: Look) => Duck,
     private onPick: (look: Look) => void,
   ) {
     this.scene.background = background;
@@ -28,16 +31,35 @@ export class LookPicker {
     this.scene.add(this.hemi, this.sun);
 
     for (const look of LOOKS) {
-      const button = root.querySelector<HTMLElement>(`.pick[data-look="${look}"]`);
+      const button = root.querySelector<HTMLButtonElement>(`.pick[data-look="${look}"]`);
       const stage = button?.querySelector<HTMLElement>('.stage');
       if (!button || !stage) continue;
-      const duck = makeDuck(look);
-      duck.play('Idle', 0);
-      this.scene.add(duck.root);
-      this.cards.push({ look, stage, duck });
-      button.addEventListener('click', () => this.onPick(look));
+      this.cards.push({ look, button, stage });
+      button.addEventListener('click', () => { if (!button.disabled) this.onPick(look); });
     }
   }
+
+  setDuck(look: Look, duck: Duck) {
+    const card = this.cards.find((c) => c.look === look);
+    if (!card) return;
+    card.duck?.root.removeFromParent();
+    duck.play('Idle', 0);
+    this.scene.add(duck.root);
+    card.duck = duck;
+    card.button.disabled = false;
+    card.button.classList.remove('loading', 'failed');
+  }
+
+  fail(look: Look) {
+    const card = this.cards.find((c) => c.look === look);
+    if (!card || card.duck) return;
+    card.button.disabled = true;
+    card.button.classList.remove('loading');
+    card.button.classList.add('failed');
+  }
+
+  /** The preview ducks, e.g. to swap their materials. */
+  ducks(): Duck[] { return this.cards.flatMap((c) => (c.duck ? [c.duck] : [])); }
 
   open() { this.active = true; this.root.hidden = false; }
   close() { this.active = false; this.root.hidden = true; }
@@ -58,16 +80,18 @@ export class LookPicker {
     r.setViewport(0, 0, innerWidth, innerHeight);
     r.clear();
     r.setScissorTest(true);
-    for (const c of this.cards) c.duck.update(dt);
+    for (const c of this.cards) c.duck?.update(dt);
     this.cards.forEach((card, i) => {
+      const duck = card.duck;
+      if (!duck) return;                                                // still loading: the card shows its own text
       const rect = card.stage.getBoundingClientRect();
       if (rect.width < 2 || rect.height < 2) return;
-      this.cards.forEach((c, j) => { c.duck.root.visible = i === j; });
-      const light = LIGHTING[card.look];                                // each duck is lit the way it is in the app
+      this.cards.forEach((c, j) => { if (c.duck) c.duck.root.visible = i === j; });
+      const light = card.look === 'glass' && !this.scene.environment ? LIGHTING.plain : LIGHTING[card.look]; // lit the way it is in the app
       this.scene.environmentIntensity = light.env;
       this.hemi.intensity = light.hemi;
       this.sun.intensity = light.sun;
-      card.duck.root.rotation.y = Math.sin(time * 0.9 + i) * 0.55;   // gentle turn so the finish shows
+      duck.root.rotation.y = Math.sin(time * 0.9 + i) * 0.55;   // gentle turn so the finish shows
       const y = innerHeight - rect.bottom;
       r.setViewport(rect.left, y, rect.width, rect.height);
       r.setScissor(rect.left, y, rect.width, rect.height);

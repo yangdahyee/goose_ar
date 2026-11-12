@@ -42,3 +42,26 @@ export function applyGlassLook(root: THREE.Object3D) {
     }
   });
 }
+
+/**
+ * Fallback for GPUs that cannot compile the glass duck's physical material (the duck would be invisible):
+ * swap it for a plain standard material that keeps colour, roughness and textures but drops the clearcoat.
+ */
+export function downgradeToStandard(root: THREE.Object3D) {
+  const swapped = new Map<THREE.Material, THREE.Material>();
+  const swap = (m: THREE.Material): THREE.Material => {
+    if (!(m as THREE.MeshPhysicalMaterial).isMeshPhysicalMaterial) return m;
+    let s = swapped.get(m);
+    if (!s) {
+      s = new THREE.MeshStandardMaterial().copy(m as unknown as THREE.MeshStandardMaterial);
+      s.name = m.name;
+      swapped.set(m, s);
+    }
+    return s;
+  };
+  root.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    mesh.material = Array.isArray(mesh.material) ? mesh.material.map(swap) : swap(mesh.material);
+  });
+}

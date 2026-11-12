@@ -3,7 +3,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { DEFAULT_LOOK, DUCK_HEIGHT_M, MAX_TAP_DISTANCE_M } from './config';
 import { DuckBehavior, type DuckState } from './duck/behavior';
 import { loadDuck, type Duck } from './duck/duck';
-import { applyGlassLook, LIGHTING, LOOKS, MODEL_FILE, type Look } from './duck/looks';
+import { applyGlassLook, downgradeToStandard, LIGHTING, LOOKS, MODEL_FILE, type Look } from './duck/looks';
 import { ShadowRig } from './duck/shadow';
 import { Diag } from './ui/diag';
 import { LookPicker } from './ui/picker';
@@ -33,9 +33,17 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 $('app').appendChild(renderer.domElement);
 
-// A neutral studio environment: the glass look's clearcoat needs something to reflect.
-const pmrem = new THREE.PMREMGenerator(renderer);
-const envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+// ---- ?diag: on-screen diagnostics for phones we cannot debug (the panel is filled in further down)
+const diag = params.has('diag') ? new Diag() : undefined;
+
+// A neutral studio environment: the glass look's clearcoat needs something to reflect. It is skipped when the GPU
+// cannot render into float textures (or with ?noenv): the duck then has less shine, but it still shows.
+const hasFloatTargets = renderer.extensions.has('EXT_color_buffer_float') || renderer.extensions.has('EXT_color_buffer_half_float');
+let envMap: THREE.Texture | null = null;
+if (!params.has('noenv') && hasFloatTargets) {
+  try { envMap = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture; }
+  catch (e) { diag?.log(`environment failed: ${e}`); }
+}
 const VIEWER_BG = new THREE.Color(0xeef3f6);
 const scene = new THREE.Scene();
 scene.background = VIEWER_BG;
@@ -150,18 +158,31 @@ const onDuckState = (owner: Look) => (s: DuckState, prev: DuckState) => {
   if (s !== 'go') marker.hide();
   if (ducks[owner]?.root.visible) { const [text, tone] = captionFor(s, prev); showCaption(text, tone, CAPTION_MS); }
 };
-async function ensureDuck(look: Look): Promise<Duck> {
-  let d = ducks[look];
-  if (!d) {
-    d = await loadDuck(`${import.meta.env.BASE_URL}models/${MODEL_FILE[look]}`);
-    if (look === 'glass') applyGlassLook(d.root);
+const loading: Partial<Record<Look, Promise<Duck>>> = {};
+let physicalBroken = false;   // set when the GPU could not compile the glass material
+function ensureDuck(look: Look): Promise<Duck> {
+  // One download per duck, even when the picker and the viewer ask at the same time.
+  return (loading[look] ??= (async () => {
+    const d = await loadDuck(`${import.meta.env.BASE_URL}models/${MODEL_FILE[look]}`);
+    if (look === 'glass') {
+      applyGlassLook(d.root);
+      if (physicalBroken) downgradeToStandard(d.root);
+    }
     ducks[look] = d;
     behaviors[look] = new DuckBehavior(d, onDuckState(look));
-  }
-  return d;
+    return d;
+  })().catch((e) => { delete loading[look]; throw e; }));
 }
+renderer.debug.onShaderError = () => {
+  if (physicalBroken) return;
+  physicalBroken = true;
+  diag?.log('shader error: using plain materials');
+  for (const d of Object.values(ducks)) downgradeToStandard(d.root);
+  for (const d of picker?.ducks() ?? []) downgradeToStandard(d.root);
+};
 function applyLighting(look: Look) {
-  const l = LIGHTING[look];
+  // The glass duck's gentle lights assume environment reflections; without them it would look dark, so use the bright set.
+  const l = look === 'glass' && !envMap ? LIGHTING.plain : LIGHTING[look];
   scene.environmentIntensity = l.env;
   hemi.intensity = l.hemi;
   shadow.light.intensity = l.sun;
@@ -184,28 +205,47 @@ async function activate(look: Look) {
 }
 
 let picker: LookPicker | undefined;
-async function openPicker() {
+/** Opens at once; each card fills in as its duck arrives, so the screen is never blank while a model downloads. */
+function openPicker() {
+  viewerUi.hidden = true;
   if (!picker) {
-    // The other duck may not be downloaded yet. Keep the viewer on screen meanwhile instead of showing a blank page.
-    changeLookBtn.disabled = true;
-    changeLookBtn.textContent = '불러오는 중…';
-    await Promise.all(LOOKS.map(ensureDuck));      // the previews need both
-    picker = new LookPicker(renderer, $('picker'), envMap, VIEWER_BG, (look) => ducks[look]!.clone(), async (look) => {
+    picker = new LookPicker(renderer, $('picker'), envMap, VIEWER_BG, async (look) => {
       storeLook(look);
-      await activate(look);
+      try { await activate(look); } catch (e) { diag?.log(`activate ${look}: ${e}`); return; }
       statusEl.textContent = '재생: Idle';
       picker!.close();
       viewerUi.hidden = false;
     });
-    changeLookBtn.disabled = false;
-    updateLookButton();
+    for (const look of LOOKS) {
+      ensureDuck(look)
+        .then((d) => picker!.setDuck(look, d.clone()))
+        .catch((e) => { diag?.log(`load ${look}: ${e}`); picker!.fail(look); });
+    }
   }
-  viewerUi.hidden = true;
   picker.open();
 }
-changeLookBtn.onclick = () => { void openPicker(); };
+changeLookBtn.onclick = openPicker;
 
-await activate(currentLook);
+// First visit: show the picker before anything is downloaded, so the page is never blank.
+if ((firstVisit && params.get('ui') !== 'ar') || params.has('pick')) openPicker();
+
+let loadTip = '';
+try {
+  await activate(currentLook);
+} catch (e) {
+  diag?.log(`load ${currentLook}: ${e}`);
+  const other: Look = currentLook === 'glass' ? 'plain' : 'glass';
+  try {
+    await activate(other);
+    loadTip = ' · 고른 오리를 불러오지 못해서 다른 오리로 열었어요.';
+  } catch (e2) {
+    diag?.log(`load ${other}: ${e2}`);
+    picker?.close();
+    viewerUi.hidden = false;
+    statusEl.textContent = '오리를 불러오지 못했어요. 통신이 안정적인 곳에서 새로고침해 주세요.';
+    throw e2;
+  }
+}
 
 // ---- normal viewer: clip buttons
 for (const name of duck.clips) {
@@ -217,17 +257,11 @@ for (const name of duck.clips) {
 }
 const firstClip = params.get('clip') ?? (duck.clips.includes('Idle') ? 'Idle' : duck.clips[0]);
 duck.play(firstClip, 0);
-statusEl.textContent = `재생: ${firstClip}`;
+statusEl.textContent = `재생: ${firstClip}${loadTip}`;
 const t = params.get('t');
 if (t) duck.freezeAt(firstClip, Number(t));
-if ((firstVisit && params.get('ui') !== 'ar') || params.has('pick')) {
-  viewerUi.hidden = true;
-  void openPicker();
-}
 const player = new THREE.Vector3();
 
-// ---- ?diag: on-screen diagnostics for phones we cannot debug
-const diag = params.has('diag') ? new Diag() : undefined;
 if (diag) {
   const gl = renderer.getContext();
   const info = gl.getExtension('WEBGL_debug_renderer_info');
@@ -237,6 +271,7 @@ if (diag) {
   diag.set('gpu', info ? String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL)) : 'n/a');
   diag.set('float rt', `${renderer.extensions.has('EXT_color_buffer_float')} (half: ${renderer.extensions.has('EXT_color_buffer_half_float')})`);
   diag.set('duck', currentLook);
+  diag.set('environment', envMap ? 'on' : hasFloatTargets ? 'off (?noenv or failed)' : 'off (no float targets)');
   void isArSupported().then((ok) => diag.set('webxr AR', ok));
 }
 if (params.has('debug')) {
@@ -390,6 +425,7 @@ renderer.setAnimationLoop((_time, frame) => {
     const now = performance.now();
     if (now - fpsSince >= 1000) { fps = Math.round((fpsFrames * 1000) / (now - fpsSince)); fpsFrames = 0; fpsSince = now; }
     diag.set('fps', fps);
+    diag.set('materials', physicalBroken ? 'PLAIN (shader error)' : 'full');
     if (renderer.xr.isPresenting) {
       const s = ar.stats;
       diag.set('AR granted', s.features);
