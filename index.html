@@ -54,14 +54,14 @@
       #overlay .x { position: absolute; top: max(14px, env(safe-area-inset-top)); left: max(14px, env(safe-area-inset-left));
         width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; }
       /* exit: just a white X, no button shape. The 44px tap area stays, so it is easy to hit without drawing attention */
-      #overlay .x { background: none; border: 0; color: #fff; width: 44px; height: 44px; }
-      #overlay .x svg { width: 22px; height: 22px; stroke-width: 2; filter: drop-shadow(0 1px 3px rgba(0, 0, 0, .5)); }
+      #overlay .x { background: none; border: 0; color: rgba(255, 255, 255, .62); width: 44px; height: 44px; }
+      #overlay .x svg { width: 20px; height: 20px; stroke-width: 1.8; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .28)); }
       /* caption: no container. Text, a status dot and a faint scrim behind it, so it never competes with the glass buttons */
-      #scrim { position: absolute; left: 0; right: 0; top: 0; height: calc(env(safe-area-inset-top, 0px) + 110px); pointer-events: none;
+      #scrim { position: absolute; left: 0; right: 0; top: 0; height: calc(env(safe-area-inset-top, 0px) + 150px); pointer-events: none;
         background: linear-gradient(rgba(0, 0, 0, .32), rgba(0, 0, 0, 0)); opacity: 0; transition: opacity .3s; }
       #scrim.show { opacity: 1; }
-      #hint { position: absolute; top: calc(max(20px, env(safe-area-inset-top)) + 6px); left: 50%; transform: translate(-50%, -4px);
-        max-width: calc(100% - 140px); text-align: center; white-space: nowrap; font: 800 16px/1.3 var(--font-ui); color: #fff;
+      #hint { position: absolute; top: calc(max(20px, env(safe-area-inset-top)) + 46px); left: 50%; transform: translate(-50%, -4px);
+        max-width: calc(100% - 32px); text-align: center; white-space: nowrap; font: 800 16px/1.3 var(--font-ui); color: #fff;
         text-shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 2px 14px rgba(0, 0, 0, .35); pointer-events: none;
         opacity: 0; transition: opacity .3s, transform .3s; }
       #hint.show { opacity: 1; transform: translate(-50%, 0); }
