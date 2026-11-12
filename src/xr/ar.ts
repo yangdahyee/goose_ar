@@ -106,16 +106,12 @@ export class ArController {
   }
 
   /**
-   * Ask for plane AND point hits. Planes are only reported once ARCore is sure of them, which takes the longest;
-   * point hits (feature points) come much earlier and also work on plain floors. Older browsers that do not know
-   * entityTypes get the default (planes only).
+   * Hit-test against whatever surface is in the middle of the screen: floor, desk, laptop, wall. Only planes (the
+   * browser default): asking for feature points as well, or for up-facing surfaces only, made the duck go on the
+   * floor and nowhere else, which made it hard to see from the front.
    */
   private async startHitTest(session: XRSession, viewer: XRReferenceSpace): Promise<XRHitTestSource | undefined> {
-    try {
-      return await session.requestHitTestSource!({ space: viewer, entityTypes: ['plane', 'point'] });
-    } catch {
-      return await session.requestHitTestSource!({ space: viewer });
-    }
+    return await session.requestHitTestSource!({ space: viewer });
   }
 
   /** No floor was found: put the duck on an estimated one (see estimateFloorPoint). */
@@ -153,7 +149,7 @@ export class ArController {
       return;
     }
     const space = this.renderer.xr.getReferenceSpace();
-    // The nearest hit that faces up. Walls and ceilings are skipped, so they never look like "found the floor".
+    // The nearest hit, whatever way the surface faces. (`up` below is only counted for the ?diag panel.)
     let pose: XRPose | undefined;
     if (space) {
       const results = frame.getHitTestResults(this.hitSource);
@@ -162,7 +158,8 @@ export class ArController {
         const p = hit.getPose(space);
         if (!p) continue;
         best = Math.max(best, p.transform.matrix[5]);
-        if (facesUp(p.transform.matrix)) { up++; pose ??= p; }
+        if (facesUp(p.transform.matrix)) up++;
+        pose ??= p;
       }
       if (this.collectStats) Object.assign(this.stats, { hitRaw: results.length, hitUp: up, bestUp: best });
     }
