@@ -10,12 +10,23 @@ export class TargetMarker {
     this.mesh.visible = false;
   }
 
+  /** While true (photo mode) the ring stays hidden, but show() still remembers the spot so it can come back. */
+  private suppressed = false;
+  private wanted = false;
+
   show(point: THREE.Vector3) {
     this.mesh.position.copy(point).y += 0.003;
-    this.mesh.visible = true;
+    this.wanted = true;
+    this.mesh.visible = !this.suppressed;
   }
 
-  hide() { this.mesh.visible = false; }
+  hide() { this.wanted = false; this.mesh.visible = false; }
+
+  /** Hide the ring without forgetting it (photo mode); un-suppressing brings it back if it is still wanted. */
+  setSuppressed(on: boolean) {
+    this.suppressed = on;
+    this.mesh.visible = this.wanted && !on;
+  }
 
   /** `seconds` is any increasing clock. */
   update(seconds: number) {

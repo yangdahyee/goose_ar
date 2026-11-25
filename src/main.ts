@@ -23,7 +23,8 @@ const comeBtn = $<HTMLButtonElement>('come'), danceBtn = $<HTMLButtonElement>('d
 const photoBtn = $<HTMLButtonElement>('photo'), showUiBtn = $<HTMLButtonElement>('show-ui');
 const setPlacedUi = (placed: boolean) => { comeBtn.hidden = danceBtn.hidden = replaceBtn.hidden = photoBtn.hidden = !placed; };
 // Photo mode hides every overlay element so a phone screenshot or screen recording is clean.
-const setPhotoMode = (on: boolean) => overlay.classList.toggle('photo', on);
+// The destination ring lives in the 3D scene, not the overlay, so it has to be hidden separately.
+const setPhotoMode = (on: boolean) => { overlay.classList.toggle('photo', on); marker.setSuppressed(on); };
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -365,10 +366,16 @@ const ar = new ArController(renderer, overlay, {
 scene.add(ar.reticle);
 
 placeAnywayBtn.onclick = () => { diag?.log('tapped 그냥 놓기'); ar.placeEstimated(); };
-replaceBtn.onclick = () => {
-  duck.root.visible = false;
-  setPlacedUi(false);
+/** Clears what the previous action left behind (walking state, destination ring, caption). Call before a new placement. */
+function resetTransient() {
+  duck.root.visible = false;     // first: a hidden duck makes the idle transition skip its "placed" caption
+  behavior.setState('idle');     // also hides the ring through onDuckState
+  marker.hide();
   hideCaption();
+}
+replaceBtn.onclick = () => {
+  resetTransient();
+  setPlacedUi(false);
   showCoach(true, true);
   ar.startPlacing();
 };
