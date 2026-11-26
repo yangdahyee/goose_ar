@@ -11,6 +11,12 @@ export const WALK_SPEED_MULT = 1.8;   // plays Walk faster; ground speed scales 
 export const STOP_DISTANCE_M = 0.5;   // stops this far from the player
 export const TURN_RATE = 5;           // rad/s when turning toward the player
 
+// After arriving the duck looks around before it turns to the player: first to one side, then to the other.
+export const LOOK_TURN_RATE = 1.8;    // rad/s: slower than walking turns, so it reads as curious, not startled
+export const LOOK_ANGLE_RAD = 0.85;   // how far to each side of the arrival heading (about 49 degrees)
+export const LOOK_FIRST_S = 1.1;      // seconds spent on the first side (turn + pause)
+export const LOOK_SECOND_S = 2.0;     // seconds on the second side; then it faces the player
+
 // Tap to move
 export const GO_STOP_DISTANCE_M = 0.03; // how close to the tapped spot the duck stops
 export const MAX_TAP_DISTANCE_M = 6;    // ignore taps whose floor hit is farther than this from the camera

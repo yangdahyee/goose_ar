@@ -30,3 +30,13 @@ export function stepToward(
   const move = Math.min(Math.max(0, Math.cos(misalign)) * speed * dt, dist - stopDist);
   return { x: x + Math.sin(newYaw) * move, z: z + Math.cos(newYaw) * move, yaw: newYaw, arrived: false };
 }
+
+/**
+ * The heading to aim for while looking around: first `angle` to one side of `base`, then the same angle to the other
+ * side (`side` is +1 or -1 for which side comes first). `null` once `elapsed` passes both phases: the look is over.
+ */
+export function lookAroundYaw(base: number, elapsed: number, side: 1 | -1, angle: number, firstS: number, secondS: number): number | null {
+  if (elapsed < firstS) return base + side * angle;
+  if (elapsed < firstS + secondS) return base - side * angle;
+  return null;
+}
