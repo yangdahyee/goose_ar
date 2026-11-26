@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 import {
-  GO_STOP_DISTANCE_M, LOOK_ANGLE_RAD, LOOK_FIRST_S, LOOK_SECOND_S, LOOK_TURN_RATE, STOP_DISTANCE_M, TURN_RATE,
+  GO_STOP_DISTANCE_M, LOOK_ANGLE_RAD, LOOK_FIRST_S, LOOK_SECOND_S, LOOK_TURN_RATE, STEP_START_RAD, STEP_STOP_RAD, STOP_DISTANCE_M, TURN_RATE,
   WALK_SPEED_MULT, WALK_UNITS_PER_SEC,
 } from '../config';
 import type { Duck } from './duck';
-import { lookAroundYaw, stepToward, turnToward } from './motion';
+import { lookAroundYaw, stepToward, turnToward, wrapPi } from './motion';
 
 /** walk = coming to the player, go = walking to a tapped spot. Both use the Walk clip. */
 export type DuckState = 'idle' | 'walk' | 'go' | 'dance';
@@ -17,6 +17,8 @@ export class DuckBehavior {
   private goal = new THREE.Vector2(); // x, z of the tapped spot
   /** Set on arrival: the heading it arrived with, which side it looks at first, and how long it has been looking. */
   private look: { base: number; side: 1 | -1; t: number } | null = null;
+  /** Idle but turning on the spot: the feet step (Walk clip) so it does not slide round like a turntable. */
+  private stepping = false;
 
   constructor(private duck: Duck, private onState: (s: DuckState, prev: DuckState) => void) {
     duck.setTimeScale(CLIP.walk, WALK_SPEED_MULT);
@@ -28,6 +30,7 @@ export class DuckBehavior {
   setState(next: DuckState) {
     const prev = this.state;
     this.state = next;
+    this.stepping = false;
     // Arriving (not just being placed, not after a dance) starts a look around; any other change cancels it.
     this.look = next === 'idle' && (prev === 'walk' || prev === 'go')
       ? { base: this.duck.root.rotation.y, side: Math.random() < 0.5 ? 1 : -1, t: 0 }
@@ -65,6 +68,12 @@ export class DuckBehavior {
         const around = lookAroundYaw(this.look.base, this.look.t, this.look.side, LOOK_ANGLE_RAD, LOOK_FIRST_S, LOOK_SECOND_S);
         if (around === null) this.look = null;
         else { aim = around; rate = LOOK_TURN_RATE; }
+      }
+      if (this.state === 'idle') {
+        const off = Math.abs(wrapPi(aim - root.rotation.y));
+        if (!this.stepping && off > STEP_START_RAD) this.stepping = true;
+        else if (this.stepping && off < STEP_STOP_RAD) this.stepping = false;
+        this.duck.play(this.stepping ? CLIP.walk : CLIP.idle);
       }
       root.rotation.y = turnToward(root.rotation.y, aim, rate, dt);
     }

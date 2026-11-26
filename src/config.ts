@@ -16,6 +16,10 @@ export const LOOK_TURN_RATE = 1.8;    // rad/s: slower than walking turns, so it
 export const LOOK_ANGLE_RAD = 0.85;   // how far to each side of the arrival heading (about 49 degrees)
 export const LOOK_FIRST_S = 1.1;      // seconds spent on the first side (turn + pause)
 export const LOOK_SECOND_S = 2.0;     // seconds on the second side; then it faces the player
+// Turning on the spot: the duck steps (plays Walk) while it is more than STEP_START_RAD off its aim, and goes back to
+// Idle once within STEP_STOP_RAD. Two thresholds so it does not flicker between the clips near the boundary.
+export const STEP_START_RAD = 0.3;    // about 17 degrees
+export const STEP_STOP_RAD = 0.06;    // about 3 degrees
 
 // Tap to move
 export const GO_STOP_DISTANCE_M = 0.03; // how close to the tapped spot the duck stops
